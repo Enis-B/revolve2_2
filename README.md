@@ -172,6 +172,13 @@ python plot_ea_fitness.py ~/revolve2/examples/optimize_modular/database/
 ``` 
 ![image](https://user-images.githubusercontent.com/75667244/161257429-6b8fdba4-997e-44be-bb84-57662d79a9a5.png)
 
+``` 
+In the newest version:
+~/revolve2$ revolve2_plot_ea_fitness_float ./examples/simple_optimization/database 0
+
+``` 
+![Figure_1](https://user-images.githubusercontent.com/75667244/162200509-5b341b1c-fa7c-4337-9087-dbcadc8f4632.png)
+
 
 ## Documentation 
 
