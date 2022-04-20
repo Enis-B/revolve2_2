@@ -179,7 +179,35 @@ In the newest version: +database +process_id
 ``` 
 ![Figure_1](https://user-images.githubusercontent.com/75667244/162200509-5b341b1c-fa7c-4337-9087-dbcadc8f4632.png)
 
+ ## Extra - if you'd like to rebase to the master branch of the original revolve2 version
+1. Fork [Revolve2](https://github.com/ci-group/revolve2)
+2. Add the forked repo as a submodule under your working direcotry, e.g.:
+``` 
+  git submodule add --force git@github.com:onerachel/revolve2.git
+``` 
+3. remote to the original revolve2
+``` 
+cd revolve2
+git remote add originalrevolve git@github.com:ci-group/revolve2.git
 
+``` 
+check if it's added by 
+```
+git remote -v
+```
+4. get the content from the original revolve2
+```
+git fetch originalrevolve
+```
+5. rebase the master branch of the original revolve2 as the root
+```
+git rebase originalrevolve/master
+```
+6. push twice under revolve2 directory and your working directory
+```
+git push --force-with-lease
+```
+ 
 ## Documentation 
 
 [ci-group.github.io/revolve2](https://ci-group.github.io/revolve2/) 
