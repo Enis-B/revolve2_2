@@ -185,25 +185,25 @@ In the newest version: +database +process_id
 ``` 
   git submodule add --force git@github.com:onerachel/revolve2.git
 ``` 
-3. remote to the original revolve2
+3. Remote to the original revolve2
 ``` 
 cd revolve2
 git remote add originalrevolve git@github.com:ci-group/revolve2.git
 
 ``` 
-check if it's added by 
+Check if it's added by 
 ```
 git remote -v
 ```
-4. get the content from the original revolve2
+4. Get the content from the original revolve2
 ```
 git fetch originalrevolve
 ```
-5. rebase the master branch of the original revolve2 as the root
+5. Rebase the master branch of the original revolve2 as the root
 ```
 git rebase originalrevolve/master
 ```
-6. push twice under revolve2 directory and your working directory
+6. Push twice under revolve2 directory and your working directory
 ```
 git push --force-with-lease
 ```
