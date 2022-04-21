@@ -13,6 +13,19 @@ If you are using the Isaac Gym environment supplementary library, it requires ex
   
 
 ## Installation 
+## Assuming that you have downloaded isaacgym and installed virtualenv, simple steps to install are:
+``` 
+cd revolve2/
+python3.8 -m virtualenv .venv
+source .venv/bin/activate
+pip install ~/isaacgym/python/
+./dev_requirements.sh
+``` 
+check the installation
+``` 
+pip list |grep revolve2
+``` 
+## Step by step
 
 1. Install virtual enviroment. 1) virtualenv or 2)conda.  
 
