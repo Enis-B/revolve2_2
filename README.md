@@ -13,7 +13,7 @@ If you are using the Isaac Gym environment supplementary library, it requires ex
   
 
 ## Installation 
-## Assuming that you have downloaded isaacgym and installed virtualenv, simple steps to install are:
+Assuming that you have downloaded isaacgym and installed virtualenv, simple steps to install are:
 ``` 
 cd revolve2/
 python3.8 -m virtualenv .venv
