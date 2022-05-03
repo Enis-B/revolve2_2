@@ -201,20 +201,20 @@ In the newest version: +database +process_id
 3. Remote to the original revolve2
 ``` 
 cd revolve2
-git remote add originalrevolve git@github.com:ci-group/revolve2.git
+git remote add ci_revolve2 git@github.com:ci-group/revolve2.git
 
 ``` 
 Check if it's added by 
 ```
 git remote -v
 ```
-4. Get the content from the original revolve2
+4. Get the content from the original CI revolve2
 ```
-git fetch originalrevolve
+git fetch ci_revolve2
 ```
 5. Rebase the master branch of the original revolve2 as the root
 ```
-git rebase originalrevolve/master
+git rebase ci_revolve2/master
 ```
 6. Push twice under revolve2 directory and your working directory
 ```
