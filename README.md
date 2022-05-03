@@ -194,9 +194,13 @@ In the newest version: +database +process_id
 
  ## Extra - if you'd like to rebase to the master branch of the original revolve2 version
 1. Fork [Revolve2](https://github.com/ci-group/revolve2)
-2. Add the forked repo as a submodule under your working direcotry, e.g.:
+2. Add the forked repo as a submodule under your working direcotry. e.g.:
 ``` 
   git submodule add --force git@github.com:onerachel/revolve2.git
+``` 
+or checkout to the existing one:
+``` 
+  git checkout remote/xxx
 ``` 
 3. Remote to the original revolve2
 ``` 
