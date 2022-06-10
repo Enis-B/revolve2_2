@@ -5,6 +5,7 @@ import multineat
 from genotype import random as random_genotype
 from optimizer import Optimizer
 
+
 from revolve2.core.database import open_async_database_sqlite
 from revolve2.core.optimization import ProcessIdGen
 
@@ -40,10 +41,9 @@ async def main() -> None:
 
     # multineat innovation databases
     innov_db_body = multineat.InnovationDatabase()
-    innov_db_brain = multineat.InnovationDatabase()
 
     initial_population = [
-        random_genotype(innov_db_body, innov_db_brain, rng, NUM_INITIAL_MUTATIONS)
+        random_genotype(innov_db_body, rng, NUM_INITIAL_MUTATIONS, 10)
         for _ in range(POPULATION_SIZE)
     ]
 
@@ -53,7 +53,6 @@ async def main() -> None:
         database=database,
         process_id=process_id,
         innov_db_body=innov_db_body,
-        innov_db_brain=innov_db_brain,
         rng=rng,
         process_id_gen=process_id_gen,
     )
@@ -67,7 +66,6 @@ async def main() -> None:
             rng=rng,
             process_id_gen=process_id_gen,
             innov_db_body=innov_db_body,
-            innov_db_brain=innov_db_brain,
             simulation_time=SIMULATION_TIME,
             sampling_frequency=SAMPLING_FREQUENCY,
             control_frequency=CONTROL_FREQUENCY,

@@ -19,16 +19,17 @@ from revolve2.genotypes.cppnwin.modular_robot.body_genotype_v1 import (
 from revolve2.genotypes.cppnwin.modular_robot.body_genotype_v1 import (
     random_v1 as body_random,
 )
-from revolve2.genotypes.cppnwin.modular_robot.brain_genotype_cpg_v1 import (
-    develop_v1 as brain_develop,
-)
-from revolve2.genotypes.cppnwin.modular_robot.brain_genotype_cpg_v1 import (
-    random_v1 as brain_random,
-)
-from revolve2.core.modular_robot.brains import Cpg
+# from revolve2.genotypes.cppnwin.modular_robot.brain_genotype_cpg_v1 import (
+#     develop_v1 as brain_develop,
+
 import numpy as np
 import numpy.typing as npt
 from revolve2.core.database.serializers import DbNdarray1xn, Ndarray1xnSerializer
+from jlo.array_genotype.array_genotype import ArrayGenotype, ArrayGenotypeSerializer, random_v1 as random_array_genotype
+from jlo.array_genotype.genotype_schema import DbArrayGenotype, DbArrayGenotypeItem
+from jlo.array_genotype.array_genotype_crossover import crossover as crossover_v2
+from jlo.array_genotype.array_genotype_mutation import mutate as mutate_v2
+
 
 
 
@@ -80,18 +81,18 @@ _MULTINEAT_PARAMS = _make_multineat_params()
 @dataclass
 class Genotype:
     body: CppnwinGenotype
-    brain: npt.NDArray[np.float_]
+    brain: ArrayGenotype
 
 class GenotypeSerializer(Serializer[Genotype]):
     @classmethod
     async def create_tables(cls, session: AsyncSession) -> None:
         await (await session.connection()).run_sync(DbBase.metadata.create_all)
         await CppnwinGenotypeSerializer.create_tables(session)
-        await Ndarray1xnSerializer.create_tables(session)
+        await ArrayGenotypeSerializer.create_tables(session)
 
     @classmethod
     def identifying_table(cls) -> str:
-        return DbGenotype.__tablename__
+        return DbArrayGenotype.__tablename__
 
     @classmethod
     async def to_database(
@@ -100,7 +101,7 @@ class GenotypeSerializer(Serializer[Genotype]):
         body_ids = await CppnwinGenotypeSerializer.to_database(
             session, [o.body for o in objects]
         )
-        brain_ids = await Ndarray1xnSerializer.to_database(
+        brain_ids = await ArrayGenotypeSerializer.to_database(
             session, [o.brain for o in objects]
         )
 
@@ -137,7 +138,7 @@ class GenotypeSerializer(Serializer[Genotype]):
         body_genotypes = await CppnwinGenotypeSerializer.from_database(
             session, body_ids
         )
-        brain_genotypes = await Ndarray1xnSerializer.from_database(
+        brain_genotypes = await ArrayGenotypeSerializer.from_database(
             session, brain_ids
         )
 
@@ -154,6 +155,7 @@ def random(
     # innov_db_brain: multineat.InnovationDatabase,
     rng: Random,
     num_initial_mutations: int,
+    robot_grid_size: int
 ) -> Genotype:
     multineat_rng = _multineat_rng_from_random(rng)
 
@@ -173,7 +175,7 @@ def random(
     #     num_initial_mutations,
     # )
 
-    brain = Brain()
+    brain = random_array_genotype(robot_grid_size ** 2, rng)
 
     return Genotype(body, brain)
 
@@ -181,16 +183,15 @@ def random(
 def mutate(
     genotype: Genotype,
     innov_db_body: multineat.InnovationDatabase,
-    innov_db_brain: multineat.InnovationDatabase,
+    # innov_db_brain: multineat.InnovationDatabase,
     rng: Random,
 ) -> Genotype:
     multineat_rng = _multineat_rng_from_random(rng)
 
     return Genotype(
         mutate_v1(genotype.body, _MULTINEAT_PARAMS, innov_db_body, multineat_rng),
-        mutate_v1(genotype.brain, _MULTINEAT_PARAMS, innov_db_brain, multineat_rng),
+        mutate_v2(genotype.brain, 0, 0.5, 0.8),
     )
-
 
 def crossover(
     parent1: Genotype,
@@ -208,21 +209,13 @@ def crossover(
             False,
             False,
         ),
-        crossover_v1(
+        crossover_v2(
             parent1.brain,
             parent2.brain,
-            _MULTINEAT_PARAMS,
-            multineat_rng,
-            False,
-            False,
+            rng,
+            0.5
         ),
     )
-
-
-def develop(genotype: Genotype) -> ModularRobot:
-    body = body_develop(genotype.body)
-    brain = brain_develop(genotype.brain, body)
-    return ModularRobot(body, brain)
 
 
 def _multineat_rng_from_random(rng: Random) -> multineat.RNG:
@@ -232,15 +225,6 @@ def _multineat_rng_from_random(rng: Random) -> multineat.RNG:
 
 
 DbBase = declarative_base()
-
-class Brain(Cpg):
-    _weight_matrix: npt.NDArray[np.float_]  # nxn matrix matching number of neurons
-
-    def __init__(
-        self, weight_matrix: npt.NDArray[np.float_]
-    ) -> None:
-        self._weight_matrix = weight_matrix
-
 
 class DbGenotype(DbBase):
     __tablename__ = "genotype"

@@ -13,15 +13,26 @@ from revolve2.serialization import Serializable, SerializeError, StaticData
 from revolve2.core.database import IncompatibleError, Serializer
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.future import select
-from genotype_schema import DbBase, DbArrayGenotype, DbArrayGenotypeItem
+from .genotype_schema import DbBase, DbArrayGenotype, DbArrayGenotypeItem
 import numpy.typing as npt
 import numpy as np
+import itertools
 from revolve2.core.database.serializers import DbNdarray1xn, Ndarray1xnSerializer
+from random import Random
 
 @dataclass
-
-class ArrayGenotype(Serializable):
+class ArrayGenotype:
     genotype: npt.NDArray[np.float_] # vector
+
+def random_v1(
+        length: int,
+        rng: Random,
+) -> ArrayGenotype:
+    nprng = np.random.Generator(
+        np.random.PCG64(rng.randint(0, 2 ** 63))
+    )  # rng is currently not numpy, but this would be very convenient. do this until that is resolved.
+    params = nprng.standard_normal(length)
+    return ArrayGenotype(params)
 
 #  TODO Brain or BrainCpgV1?
 def develop(genotype: ArrayGenotype) -> Brain:
@@ -74,14 +85,11 @@ class ArrayGenotypeSerializer(Serializer[ArrayGenotype]):
             .all()
         )
 
-        arrays: List[npt.NDArray[np.float_]] = [
-            np.array(group)
+        genotypes: List[ArrayGenotype] = [
+            ArrayGenotype(np.array([item.value for item in group]))
             for _, group in itertools.groupby(
                 items, key=lambda item: cast(int, item.array_genotype_id)
             )
-        ]  # cast to int to silence mypy
+        ]
 
-        if len(arrays) != len(ids):
-            IncompatibleError()
-
-        return arrays
+        return genotypes

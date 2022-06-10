@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import multineat
 import sqlalchemy
-from genotype import Genotype, GenotypeSerializer, crossover, develop, mutate
+from genotype import Genotype, GenotypeSerializer, crossover, mutate
 from pyrr import Quaternion, Vector3
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -17,6 +17,7 @@ import revolve2.core.optimization.ea.generic_ea.selection as selection
 from revolve2.actor_controller import ActorController
 from revolve2.core.database import IncompatibleError
 from revolve2.core.database.serializers import FloatSerializer
+from revolve2.core.modular_robot.brains import BrainCpgNetworkStatic
 from revolve2.core.optimization import ProcessIdGen
 from revolve2.core.optimization.ea.generic_ea import EAOptimizer
 from revolve2.core.physics.running import (
@@ -28,7 +29,11 @@ from revolve2.core.physics.running import (
     Runner,
 )
 from revolve2.runners.isaacgym import LocalRunner
-
+from revolve2.genotypes.cppnwin.modular_robot.body_genotype_v1 import (
+    develop_v1 as body_develop,
+)
+from revolve2.core.modular_robot import ModularRobot
+from revolve2.actor_controllers.cpg import CpgNetworkStructure, CpgIndex
 
 class Optimizer(EAOptimizer[Genotype, float]):
     _process_id: int
@@ -38,7 +43,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
     _controllers: List[ActorController]
 
     _innov_db_body: multineat.InnovationDatabase
-    _innov_db_brain: multineat.InnovationDatabase
+    # _innov_db_brain: multineat.InnovationDatabase
 
     _rng: Random
 
@@ -57,7 +62,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
         initial_population: List[Genotype],
         rng: Random,
         innov_db_body: multineat.InnovationDatabase,
-        innov_db_brain: multineat.InnovationDatabase,
+        #innov_db_brain: multineat.InnovationDatabase,
         simulation_time: int,
         sampling_frequency: float,
         control_frequency: float,
@@ -80,7 +85,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
         self._process_id = process_id
         self._init_runner()
         self._innov_db_body = innov_db_body
-        self._innov_db_brain = innov_db_brain
+        #self._innov_db_brain = innov_db_brain
         self._rng = rng
         self._simulation_time = simulation_time
         self._sampling_frequency = sampling_frequency
@@ -102,7 +107,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
         process_id_gen: ProcessIdGen,
         rng: Random,
         innov_db_body: multineat.InnovationDatabase,
-        innov_db_brain: multineat.InnovationDatabase,
+        # innov_db_brain: multineat.InnovationDatabase,
     ) -> bool:
         if not await super().ainit_from_database(
             database=database,
@@ -145,8 +150,8 @@ class Optimizer(EAOptimizer[Genotype, float]):
 
         self._innov_db_body = innov_db_body
         self._innov_db_body.Deserialize(opt_row.innov_db_body)
-        self._innov_db_brain = innov_db_brain
-        self._innov_db_brain.Deserialize(opt_row.innov_db_brain)
+        #self._innov_db_brain = innov_db_brain
+        #self._innov_db_brain.Deserialize(opt_row.innov_db_brain)
 
         return True
 
@@ -195,7 +200,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
         return crossover(parents[0], parents[1], self._rng)
 
     def _mutate(self, genotype: Genotype) -> Genotype:
-        return mutate(genotype, self._innov_db_body, self._innov_db_brain, self._rng)
+        return mutate(genotype, self._innov_db_body, self._rng)
 
     async def _evaluate_generation(
         self,
@@ -204,6 +209,8 @@ class Optimizer(EAOptimizer[Genotype, float]):
         process_id: int,
         process_id_gen: ProcessIdGen,
     ) -> List[float]:
+        grid_size = 10
+
         batch = Batch(
             simulation_time=self._simulation_time,
             sampling_frequency=self._sampling_frequency,
@@ -214,7 +221,35 @@ class Optimizer(EAOptimizer[Genotype, float]):
         self._controllers = []
 
         for genotype in genotypes:
-            actor, controller = develop(genotype).make_actor_and_controller()
+            body = body_develop(genotype.body)
+            param_grid = genotype.brain.genotype
+
+            hinges = body.find_active_hinges()
+            cpgs = [CpgIndex(i) for i, _ in enumerate(hinges)]
+            cpg_structure = CpgNetworkStructure(cpgs, set())
+
+            params = []
+            for hinge in hinges:
+                pos = body.grid_position(hinge)
+                params.append(param_grid[int(pos[0] + pos[1]*grid_size + grid_size**2 / 2)])
+
+            initial_state = cpg_structure.make_uniform_state(
+                0.5 * math.pi / 2.0
+            )
+            weight_matrix = cpg_structure.make_weight_matrix_from_params(
+                params
+            )
+            dof_ranges = cpg_structure.make_uniform_dof_ranges(1.0)
+            brain = BrainCpgNetworkStatic(
+                initial_state,
+                cpg_structure.num_cpgs,
+                weight_matrix,
+                dof_ranges,
+            )
+
+            robot = ModularRobot(body, brain)
+
+            actor, controller = robot.make_actor_and_controller()
             bounding_box = actor.calc_aabb()
             self._controllers.append(controller)
             env = Environment()
@@ -229,6 +264,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
                         ]
                     ),
                     Quaternion(),
+                    [0.0 for _ in controller.get_dof_targets()]
                 )
             )
             batch.environments.append(env)
@@ -237,8 +273,8 @@ class Optimizer(EAOptimizer[Genotype, float]):
 
         return [
             self._calculate_fitness(
-                states[0][1].envs[i].actor_states[0],
-                states[-1][1].envs[i].actor_states[0],
+                states[0].envs[i].actor_states[0],
+                states[-1].envs[i].actor_states[0],
             )
             for i in range(len(genotypes))
         ]
@@ -267,7 +303,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
                 generation_index=self.generation_index,
                 rng=pickle.dumps(self._rng.getstate()),
                 innov_db_body=self._innov_db_body.Serialize(),
-                innov_db_brain=self._innov_db_brain.Serialize(),
+                # innov_db_brain=self._innov_db_brain.Serialize(),
                 simulation_time=self._simulation_time,
                 sampling_frequency=self._sampling_frequency,
                 control_frequency=self._control_frequency,
@@ -292,7 +328,7 @@ class DbOptimizerState(DbBase):
     )
     rng = sqlalchemy.Column(sqlalchemy.PickleType, nullable=False)
     innov_db_body = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    innov_db_brain = sqlalchemy.Column(sqlalchemy.String, nullable=False)
+    #innov_db_brain = sqlalchemy.Column(sqlalchemy.String, nullable=False)
     simulation_time = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
     sampling_frequency = sqlalchemy.Column(sqlalchemy.Float, nullable=False)
     control_frequency = sqlalchemy.Column(sqlalchemy.Float, nullable=False)

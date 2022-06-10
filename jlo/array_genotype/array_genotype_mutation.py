@@ -1,8 +1,8 @@
 from __future__ import division
 import math
 import random
-from array_genotype import ArrayGenotype
-from array_genotype_config import ArrayMutationConfig
+from .array_genotype import ArrayGenotype
+from .array_genotype_config import ArrayMutationConfig
 
 from itertools import repeat
 

@@ -16,7 +16,7 @@ class DbArrayGenotypeItem(DbBase):
 
     array_genotype_id = sqlalchemy.Column(
         sqlalchemy.Integer,
-        sqlalchemy.ForeignKey(DbNdarray1xn.id),
+        sqlalchemy.ForeignKey(DbArrayGenotype.id),
         nullable=False,
         primary_key=True,
     )
