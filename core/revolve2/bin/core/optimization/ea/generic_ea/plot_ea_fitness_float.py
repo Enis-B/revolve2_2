@@ -42,6 +42,9 @@ def plot(database: str, process_id: int) -> None:
         ),
         db,
     )
+    print(df)
+    #df.to_csv('raw_data_optimize_modular.csv', index=False)
+
     # calculate max min avg
     describe = (
         df[["generation_index", "value"]]

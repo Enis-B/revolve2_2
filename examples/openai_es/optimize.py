@@ -22,10 +22,10 @@ def make_body() -> Body:
 
 
 async def main() -> None:
-    POPULATION_SIZE = 10
+    POPULATION_SIZE = 100
     SIGMA = 0.1
     LEARNING_RATE = 0.05
-    NUM_GENERATIONS = 3
+    NUM_GENERATIONS = 50
 
     SIMULATION_TIME = 10
     SAMPLING_FREQUENCY = 5
@@ -49,6 +49,7 @@ async def main() -> None:
     body = make_body()
 
     process_id = process_id_gen.gen()
+    print(process_id)
     maybe_optimizer = await Optimizer.from_database(
         database=database,
         process_id=process_id,

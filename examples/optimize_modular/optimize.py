@@ -17,9 +17,9 @@ async def main() -> None:
     SAMPLING_FREQUENCY = 5
     CONTROL_FREQUENCY = 5
 
-    POPULATION_SIZE = 10
-    OFFSPRING_SIZE = 10
-    NUM_GENERATIONS = 3
+    POPULATION_SIZE = 100
+    OFFSPRING_SIZE = 50
+    NUM_GENERATIONS = 100
 
     logging.basicConfig(
         level=logging.INFO,
@@ -48,6 +48,7 @@ async def main() -> None:
     ]
 
     process_id = process_id_gen.gen()
+    print(process_id)
     maybe_optimizer = await Optimizer.from_database(
         database=database,
         process_id=process_id,
