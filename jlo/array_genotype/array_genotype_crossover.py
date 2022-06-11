@@ -10,7 +10,7 @@ from revolve2.core.modular_robot import Module, Core
 
 def crossover(parent_a: ArrayGenotype,
               parent_b: ArrayGenotype,
-              p: np.random.rand(10),
+              p: [],
               crossover_prob: ArrayCrossoverConfig):
     """
     To implement the uniform crossover, the following python code can be used.
@@ -19,10 +19,12 @@ def crossover(parent_a: ArrayGenotype,
     It can be observed that the information between parents is exchanged at the indexes where probability is less than the threshold (0.5) to form children.
     https://medium.com/@samiran.bera/crossover-operator-the-heart-of-genetic-algorithm-6c0fdcb405c0
     """
+
+    p = np.random.rand(10)
     for i in range(len(p)):
         if p[i] < crossover_prob:
-            temp = parent_a[i]
-            parent_a[i] = parent_b[i]
-            parent_b[i] = temp
+            temp = parent_a
+            parent_a = parent_b
+            parent_b = temp
     new_genotype = parent_b
     return new_genotype  # or parent_a as the new genotype

@@ -156,7 +156,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
         return True
 
     def _init_runner(self) -> None:
-        self._runner = LocalRunner(LocalRunner.SimParams(), headless=True) # TURN OFF SIMULATOR ->True
+        self._runner = LocalRunner(LocalRunner.SimParams(), headless=False) # TURN OFF SIMULATOR ->True
 
     def _select_parents(
         self,

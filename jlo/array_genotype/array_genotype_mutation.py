@@ -1,6 +1,7 @@
 from __future__ import division
 import math
 import random
+
 from .array_genotype import ArrayGenotype
 from .array_genotype_config import ArrayMutationConfig
 
@@ -29,8 +30,9 @@ def mutate(genotype: ArrayGenotype, mu, sigma, mutation_prob: ArrayMutationConfi
     :returns: new genotype.
     This function uses the :func:`~random.random` and :func:`~random.gauss`
     functions from the python base :mod:`random` module.
+    https://github.com/DEAP/deap/blob/master/deap/tools/mutation.py
     """
-    size = len(genotype)
+    size = len(genotype.genotype)
     if not isinstance(mu, Sequence):
         mu = repeat(mu, size)
     elif len(mu) < size:
@@ -42,6 +44,6 @@ def mutate(genotype: ArrayGenotype, mu, sigma, mutation_prob: ArrayMutationConfi
 
     for i, m, s in zip(range(size), mu, sigma):
         if random.random() < mutation_prob:
-            genotype[i] += random.gauss(m, s)
+            genotype.genotype[i] += random.gauss(m, s)
 
     return genotype  # new_genotype

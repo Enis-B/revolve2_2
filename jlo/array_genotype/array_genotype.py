@@ -34,7 +34,7 @@ def random_v1(
     params = nprng.standard_normal(length)
     return ArrayGenotype(params)
 
-#  TODO Brain or BrainCpgV1?
+
 def develop(genotype: ArrayGenotype) -> Brain:
     genotype.genotype.finalize()
     return genotype.genotype

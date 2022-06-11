@@ -20,7 +20,7 @@ async def main() -> None:
 
     POPULATION_SIZE = 10
     OFFSPRING_SIZE = 5
-    NUM_GENERATIONS = 10
+    NUM_GENERATIONS = 20
 
     logging.basicConfig(
         level=logging.INFO,
