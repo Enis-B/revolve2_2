@@ -249,7 +249,7 @@ class DEOptimizer(ABC, Process):
                 index = await Ndarray1xnSerializer.to_database(session, [individual])
                 individual = DbDEOptimizerIndividual(
                     process_id=self.__process_id,
-                    gen_num=0,.
+                    gen_num=0,
                     ndarray1xn_id=index,
                     value_index=id,
                     fitness=fitness)  # creat header

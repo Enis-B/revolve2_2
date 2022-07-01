@@ -14,20 +14,20 @@ async def main() -> None:
     # number of initial mutations for body and brain CPPNWIN networks
     NUM_INITIAL_MUTATIONS = 10
 
-    SIMULATION_TIME = 10
+    SIMULATION_TIME = 2
     SAMPLING_FREQUENCY = 5
     CONTROL_FREQUENCY = 5
 
     POPULATION_SIZE = 10
     OFFSPRING_SIZE = 5
-    NUM_GENERATIONS = 20
+    NUM_GENERATIONS = 10
 
     logging.basicConfig(
         level=logging.INFO,
         format="[%(asctime)s] [%(levelname)s] [%(module)s] %(message)s",
     )
 
-    logging.info(f"Starting optimization")
+    # logging.info(f"Starting optimization")
 
     # random number generator
     rng = Random()
@@ -73,11 +73,11 @@ async def main() -> None:
             offspring_size=OFFSPRING_SIZE,
         )
 
-    logging.info("Starting optimization process..")
+    logging.info("Starting EA optimization process..")
 
     await optimizer.run()
 
-    logging.info(f"Finished optimizing.")
+    logging.info(f"Finished EA optimizing.")
 
 
 if __name__ == "__main__":

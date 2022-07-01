@@ -15,20 +15,20 @@ from revolve2.genotypes.cppnwin import Genotype as CppnwinGenotype
 from revolve2.core.database import IncompatibleError, Serializer
 from revolve2.genotypes.cppnwin import GenotypeSerializer as CppnwinGenotypeSerializer
 from revolve2.genotypes.cppnwin import crossover_v1 as cppnwin_crossover, mutate_v1 as cppnwin_mutate
-from revolve2.genotypes.cppnwin.modular_robot.body_genotype_v1 import (
-    random_v1 as body_random,
+from revolve2.genotypes.cppnwin.modular_robot.brain_genotype_cpg_v1 import (
+    random_v1 as brain_random,
 )
 from revolve2.genotypes.cppnwin.modular_robot.brain_genotype_cpg_v1 import (
     develop_v1 as brain_develop,
 )
 
-from array_genotype.array_genotype import ArrayGenotype
-from array_genotype.array_genotype_config import ArrayGenotypeConfig
-from array_genotype.array_genotype import GenotypeSerializer as ArrayGenotypeSerializer
-from array_genotype.array_genotype_mutation import mutate as array_genotype_mutate
-from array_genotype.array_genotype_crossover import crossover as array_genotype_crossover
-# from array_genotype.random_tree_generator import generate_tree
-from array_genotype.array_genotype import develop as body_develop
+from direct_tree.direct_tree_genotype import DirectTreeGenotype
+from direct_tree.direct_tree_config import DirectTreeGenotypeConfig
+from direct_tree.direct_tree_genotype import GenotypeSerializer as DirectTreeGenotypeSerializer
+from direct_tree.direct_tree_mutation import mutate as direct_tree_mutate
+from direct_tree.direct_tree_crossover import crossover as direct_tree_crossover
+from direct_tree.random_tree_generator import generate_tree
+from direct_tree.direct_tree_genotype import develop as body_develop
 
 from revolve2.core.modular_robot import Core, Body, Module, Brick, ActiveHinge
 
@@ -37,12 +37,10 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.future import select
 
-# from array_genotype.array_genotype_utils import duplicate_subtree
-# import robot_zoo
+from direct_tree.direct_tree_utils import duplicate_subtree
+import robot_zoo
 
-
-#TODO
-def _make_array_genotype_config() -> ArrayGenotypeConfig:
+def _make_direct_tree_config() -> DirectTreeGenotypeConfig:
 
     morph_single_mutation_prob = 0.2
     morph_no_single_mutation_prob = 1 - morph_single_mutation_prob  # 0.8
@@ -51,7 +49,7 @@ def _make_array_genotype_config() -> ArrayGenotypeConfig:
 
     brain_single_mutation_prob = 0.5
 
-    tree_genotype_conf: ArrayGenotypeConfig = ArrayGenotypeConfig(
+    tree_genotype_conf: DirectTreeGenotypeConfig = DirectTreeGenotypeConfig(
         max_parts=50,
         min_parts=10,
         max_oscillation=5,
@@ -114,20 +112,18 @@ def _make_multineat_params() -> multineat.Parameters:
 
     return multineat_params
 
-#TODO: ArrayGenotype CLASS (new_brain)
+
 @dataclass
 class Genotype:
-    body: ArrayGenotype
+    body: DirectTreeGenotype
     brain: CppnwinGenotype
 
-
-# TODO: ArrayGenotypeSerializer create_table, to_database
 class GenotypeSerializer(Serializer[Genotype]):
     @classmethod
     async def create_tables(cls, session: AsyncSession) -> None:
         await (await session.connection()).run_sync(DbBase.metadata.create_all)
         await CppnwinGenotypeSerializer.create_tables(session)
-        await ArrayGenotypeSerializer.create_tables(session)
+        await DirectTreeGenotypeSerializer.create_tables(session)
 
     @classmethod
     def identifying_table(cls) -> str:
@@ -137,11 +133,11 @@ class GenotypeSerializer(Serializer[Genotype]):
     async def to_database(
         cls, session: AsyncSession, objects: List[Genotype]
     ) -> List[int]:
-        brain_ids = await ArrayGenotypeSerializer.to_database(
-            session, [o.body for o in objects]
-        )
-        body_ids = await CppnwinGenotypeSerializer.to_database(
+        brain_ids = await CppnwinGenotypeSerializer.to_database(
             session, [o.brain for o in objects]
+        )
+        body_ids = await DirectTreeGenotypeSerializer.to_database(
+            session, [o.body for o in objects]
         )
 
         dbgenotypes = [
@@ -174,12 +170,13 @@ class GenotypeSerializer(Serializer[Genotype]):
         body_ids = [id_map[id].body_id for id in ids]
         brain_ids = [id_map[id].brain_id for id in ids]
 
-        body_genotypes = await CppnwinGenotypeSerializer.from_database(
-            session, brain_ids
-        )
-        brain_genotypes = await ArrayGenotypeSerializer.from_database(
+        body_genotypes = await DirectTreeGenotypeSerializer.from_database(
             session, body_ids
         )
+        brain_genotypes = await CppnwinGenotypeSerializer.from_database(
+            session, brain_ids
+        )
+
         genotypes = [
             Genotype(body, brain)
             for body, brain in zip(body_genotypes, brain_genotypes)
@@ -189,21 +186,20 @@ class GenotypeSerializer(Serializer[Genotype]):
 
 
 _MULTINEAT_PARAMS = _make_multineat_params()
-_array_genotype_CONFIG = _make_array_genotype_config()
+_DIRECT_TREE_CONFIG = _make_direct_tree_config()
 
 
 def random(
-    innov_db_body: multineat.InnovationDatabase,
+    innov_db_brain: multineat.InnovationDatabase,
     rng: Random,
     num_initial_mutations: int,
 ) -> Genotype:
     multineat_rng = _multineat_rng_from_random(rng)
 
-#TODO make brain
-    #brain = robot_zoo.make_ant_body()
+    body = robot_zoo.make_ant_body()
 
-    body = body_random(
-        innov_db_body,
+    brain = brain_random(
+        innov_db_brain,
         multineat_rng,
         _MULTINEAT_PARAMS,
         multineat.ActivationFunction.SIGNED_SINE,
@@ -214,18 +210,17 @@ def random(
 
 def mutate(
     genotype: Genotype,
-    innov_db_body: multineat.InnovationDatabase,
+    innov_db_brain: multineat.InnovationDatabase,
     rng: Random,
 ) -> Genotype:
     multineat_rng = _multineat_rng_from_random(rng)
 
-#TODO Brain
-    new_brain = Brain()
-    #new_body.core = duplicate_subtree(genotype.body.genotype.core)
+    new_body = Body()
+    new_body.core = duplicate_subtree(genotype.body.genotype.core)
 
     return Genotype(
-        ArrayGenotype(new_brain),
-        cppnwin_mutate(genotype.body, _MULTINEAT_PARAMS, innov_db_body, multineat_rng),
+        DirectTreeGenotype(new_body),
+        cppnwin_mutate(genotype.brain, _MULTINEAT_PARAMS, innov_db_brain, multineat_rng),
 
     )
 
@@ -236,16 +231,14 @@ def crossover(
 ) -> Genotype:
     multineat_rng = _multineat_rng_from_random(rng)
 
-# TODO Brain
-    new_brain = Brain()
-    # new_body = Body()
-    # new_body.core = duplicate_subtree(parent1.body.genotype.core)
+    new_body = Body()
+    new_body.core = duplicate_subtree(parent1.body.genotype.core)
 
     return Genotype(
-        ArrayGenotype(new_brain),
+            DirectTreeGenotype(new_body),
         cppnwin_crossover(
-            parent1.body,
-            parent2.body,
+            parent1.brain,
+            parent2.brain,
             _MULTINEAT_PARAMS,
             multineat_rng,
             False,

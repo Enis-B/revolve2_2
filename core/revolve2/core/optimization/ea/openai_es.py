@@ -166,7 +166,7 @@ class OpenaiESOptimizer(ABC, Process):
 
         return True
 
-    async def run(self) -> None:
+    async def run(self) -> npt.NDArray[np.float_]:
         while self.__safe_must_do_next_gen():
             rng = np.random.Generator(
                 np.random.PCG64(self.__rng.randint(0, 2**63))
@@ -225,7 +225,9 @@ class OpenaiESOptimizer(ABC, Process):
 
                     session.add_all(dbgens)
 
-                    logging.info(f"Finished generation {self.__gen_num}")
+                    logging.info(f"ID {db_individual_ids} finished generation {self.__gen_num}")
+
+        return self.__mean
 
     @property
     def generation_number(self) -> Optional[int]:

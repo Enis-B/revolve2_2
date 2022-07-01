@@ -4,6 +4,7 @@ from random import Random
 from typing import List, Tuple
 
 import multineat
+import numpy as np
 import sqlalchemy
 from GA.genotype import Genotype, GenotypeSerializer, crossover, develop, mutate
 from pyrr import Quaternion, Vector3
@@ -145,7 +146,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
         return True
 
     def _init_runner(self) -> None:
-        self._runner = LocalRunner(LocalRunner.SimParams(), headless=False)
+        self._runner = LocalRunner(LocalRunner.SimParams(), headless=True)
 
     def _select_parents(
         self,
@@ -223,6 +224,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
                         ]
                     ),
                     Quaternion(),
+                    [0.0 for _ in controller.get_dof_targets()]
                 )
             )
             batch.environments.append(env)
@@ -231,8 +233,8 @@ class Optimizer(EAOptimizer[Genotype, float]):
 
         return [
             self._calculate_fitness(
-                states[0][1].envs[i].actor_states[0],
-                states[-1][1].envs[i].actor_states[0],
+                states[0].envs[i].actor_states[0],
+                states[-1].envs[i].actor_states[0],
             )
             for i in range(len(genotypes))
         ]

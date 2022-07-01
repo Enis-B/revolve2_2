@@ -69,6 +69,8 @@ class CpgNetworkStructure:
 
     @property
     def num_params(self) -> int:
+        # return len(self.cpgs)
+
         return len(self.cpgs) + len(self.connections)
 
     def make_weight_matrix_from_params(

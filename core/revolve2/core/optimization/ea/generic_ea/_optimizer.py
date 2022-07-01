@@ -315,6 +315,8 @@ class EAOptimizer(Process, Generic[Genotype, Fitness]):
             )
             initial_population = self.__latest_population
             initial_fitnesses = self.__latest_fitnesses
+
+            self.__generation_index += 1
         else:
             initial_population = None
             initial_fitnesses = None

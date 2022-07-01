@@ -15,3 +15,7 @@ __all__ = [
     "EnvironmentState",
     "RunnerState",
 ]
+
+
+class State:
+    pass
