@@ -195,7 +195,7 @@ class LocalRunner(Runner):
                 raise RuntimeError()
             num_per_row = math.sqrt(len(self._batch.environments))
             cam_pos = gymapi.Vec3(
-                num_per_row / 2.0 - 0.5, num_per_row / 2.0 + 0.5, num_per_row
+                num_per_row / 2.0 - 0.5, num_per_row / 2.0 + 0.5, num_per_row + 2
             )
             cam_target = gymapi.Vec3(
                 num_per_row / 2.0 - 0.5, num_per_row / 2.0 + 0.5 - 1, 0.0

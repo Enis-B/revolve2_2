@@ -14,13 +14,13 @@ async def main() -> None:
     # number of initial mutations for body and brain CPPNWIN networks
     NUM_INITIAL_MUTATIONS = 10
 
-    SIMULATION_TIME = 2
+    SIMULATION_TIME = 10
     SAMPLING_FREQUENCY = 5
     CONTROL_FREQUENCY = 5
 
-    POPULATION_SIZE = 10
-    OFFSPRING_SIZE = 5
-    NUM_GENERATIONS = 10
+    POPULATION_SIZE = 50
+    OFFSPRING_SIZE = 25
+    NUM_GENERATIONS = 30
 
     logging.basicConfig(
         level=logging.INFO,
@@ -43,7 +43,7 @@ async def main() -> None:
     innov_db_body = multineat.InnovationDatabase()
 
     initial_population = [
-        random_genotype(innov_db_body, rng, NUM_INITIAL_MUTATIONS, 10)
+        random_genotype(innov_db_body, rng, NUM_INITIAL_MUTATIONS, 22)  #TODO change grid_size number to param
         for _ in range(POPULATION_SIZE)
     ]
 

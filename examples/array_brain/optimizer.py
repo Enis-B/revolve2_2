@@ -219,10 +219,10 @@ class Optimizer(EAOptimizer[Genotype, float]):
             process_id_gen: ProcessIdGen,
     ) -> List[float]:
         NUM_GENERATIONS = 10
-        POPULATION_SIZE = 10
+        POPULATION_SIZE = 20
         SIGMA = 0.1
         LEARNING_RATE = 0.05
-        grid_size = 10
+        grid_size = 22
 
         body_genotypes = [genotype.body for genotype in genotypes]
         brain_genotypes = [genotype.brain.genotype for genotype in genotypes]
@@ -315,7 +315,6 @@ class Optimizer(EAOptimizer[Genotype, float]):
                                                          before, after))]
                 
                 session.add_all(dbindividuals)
-                print("added individuals!!!!!!!")
 
         return after
 
@@ -330,7 +329,7 @@ class Optimizer(EAOptimizer[Genotype, float]):
             body_genotypes: List[CppnwinGenotype],
             brain_genotypes: List[npt.NDArray[np.float_]],
     ) -> List[float]:
-        grid_size = 10
+        grid_size = 22
 
         batch = Batch(
             simulation_time=self._simulation_time,
@@ -485,7 +484,7 @@ class DbOptimizerState(DbBase):
 #
 #
 class DbBigLoopIndividual(DbBase):
-    __tablename__ = "big_loop_individual23423"
+    __tablename__ = "big_loop_individual"
 
     process_id = sqlalchemy.Column(sqlalchemy.Integer, nullable=False, primary_key=True)
     gen_num = sqlalchemy.Column(sqlalchemy.Integer, nullable=False, primary_key=True)
