@@ -317,6 +317,7 @@ class EAOptimizer(Process, Generic[Genotype, Fitness]):
             initial_fitnesses = self.__latest_fitnesses
 
             self.__generation_index += 1
+
         else:
             initial_population = None
             initial_fitnesses = None
@@ -383,7 +384,7 @@ class EAOptimizer(Process, Generic[Genotype, Fitness]):
                 self.__latest_fitnesses[i] for i in old_survivors
             ] + survived_new_fitnesses
 
-            self.__generation_index += 1
+            #self.__generation_index += 1
 
             # save generation and possibly fitnesses of initial population
             # and let user save their state
@@ -401,10 +402,12 @@ class EAOptimizer(Process, Generic[Genotype, Fitness]):
             initial_population = None
             initial_fitnesses = None
 
+            self.__generation_index += 1
+
             logging.info(f"Finished generation {self.__generation_index}.")
 
         assert (
-            self.__generation_index > 0
+            self.__generation_index > 0 #default 0
         ), "Must create at least one generation beyond initial population. This behaviour is not supported."  # would break database structure
 
     @property

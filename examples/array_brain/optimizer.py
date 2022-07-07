@@ -218,8 +218,8 @@ class Optimizer(EAOptimizer[Genotype, float]):
             process_id: int,
             process_id_gen: ProcessIdGen,
     ) -> List[float]:
-        NUM_GENERATIONS = 10
-        POPULATION_SIZE = 20
+        NUM_GENERATIONS = 1
+        POPULATION_SIZE = 10
         SIGMA = 0.1
         LEARNING_RATE = 0.05
         grid_size = 22

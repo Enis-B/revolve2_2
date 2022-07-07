@@ -283,6 +283,8 @@ class LocalRunner(Runner):
                 targets,
             )
 
+            self._gym.set_light_parameters(self._sim, 0, gymapi.Vec3(0.8, 0.8, 0.8), gymapi.Vec3(0.8, 0.8, 0.8), gymapi.Vec3(1, 2, 3))
+
         def set_actor_dof_positions(
             self,
             env_handle: gymapi.Env,
@@ -348,7 +350,7 @@ class LocalRunner(Runner):
     @staticmethod
     def SimParams() -> gymapi.SimParams:
         sim_params = gymapi.SimParams()
-        sim_params.dt = 0.02
+        sim_params.dt = 0.02    # step size
         sim_params.substeps = 2
         sim_params.up_axis = gymapi.UP_AXIS_Z
         sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.81)
