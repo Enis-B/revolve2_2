@@ -23,13 +23,13 @@ from revolve2.core.physics.running import (
 from revolve2.core.physics.actor import Actor
 import torch
 
-from RL.interaction_buffer import Buffer
+from jlo.RL.interaction_buffer import Buffer
 from .config import NUM_OBS_TIMES, NUM_OBSERVATIONS, NUM_PARALLEL_AGENT, NUM_STEPS, OBS_DIM
 
 
 class LocalRunnerTrain(Runner):
     class _Simulator:
-        ENV_SIZE = 0.5
+        ENV_SIZE = 0.5,
 
         @dataclass
         class GymEnv:
@@ -104,8 +104,8 @@ class LocalRunnerTrain(Runner):
             for env_index, env_descr in enumerate(self._batch.environments):
                 env = self._gym.create_env(
                     self._sim,
-                    gymapi.Vec3(-self.ENV_SIZE, -self.ENV_SIZE, 0.0),
-                    gymapi.Vec3(self.ENV_SIZE, self.ENV_SIZE, self.ENV_SIZE),
+                    gymapi.Vec3(-self.ENV_SIZE[0], -self.ENV_SIZE[0], 0.0),
+                    gymapi.Vec3(self.ENV_SIZE[0], self.ENV_SIZE[0], self.ENV_SIZE[0]),
                     num_per_row,
                 )
 
@@ -232,7 +232,6 @@ class LocalRunnerTrain(Runner):
             # sample initial state
             self._append_states(results, 0.0)
             old_positions = [results.environment_results[env_idx].environment_states[0].actor_states[0].position for env_idx in range(self._num_agents)]
-
             buffer = Buffer(OBS_DIM ,8, self._num_agents)
             sum_rewards = np.zeros((NUM_STEPS, self._num_agents))
             mean_values = np.zeros(NUM_STEPS)
@@ -282,11 +281,11 @@ class LocalRunnerTrain(Runner):
                     if timestep > 0:
                         # get the new positions of each agent
                         new_positions = [results.environment_results[env_idx].environment_states[-1].actor_states[0].position for env_idx in range(self._num_agents)]
-
+                        #print(new_positions,"\n")
                         # compute the rewards from the new and old positions of the agents
                         rewards = [self._calculate_velocity(old_positions[act_idx], new_positions[act_idx]) for act_idx in range(self._num_agents)]                       
-
-                        # insert data of the current state in the replay buffer
+                        #print(rewards)
+                        # insert data of the  current state in the replay buffer
                         buffer.insert(obs=observations,
                                         act=actions,
                                         logp=logps,
@@ -390,7 +389,7 @@ class LocalRunnerTrain(Runner):
             for gymenv, environment_results in zip(
                 self._gymenvs, batch_results.environment_results
             ):
-                env_state = EnvironmentState(time, [])
+                env_state = EnvironmentState([]) #(time,[])
                 for actor_handle in gymenv.actors:
                     pose = self._gym.get_actor_rigid_body_states(
                         gymenv.env, actor_handle, gymapi.STATE_POS

@@ -3,9 +3,9 @@ from typing import List
 import csv
 
 import torch
-from RL.config import NUM_OBSERVATIONS
-from RL.rl_brain import RLbrain
-from RL.rl_agent import Agent, develop
+from jlo.RL.config import NUM_OBSERVATIONS
+from jlo.RL.rl_brain import RLbrain
+from jlo.RL.rl_agent import Agent, develop
 from pyrr import Quaternion, Vector3
 
 from revolve2.actor_controller import ActorController
@@ -17,7 +17,7 @@ from revolve2.core.physics.running import (
     PosedActor,
     Runner,
 )
-from RL.rl_runner_train import LocalRunnerTrain
+from jlo.RL.rl_runner_train import LocalRunnerTrain
 
 
 class RLOptimizer():

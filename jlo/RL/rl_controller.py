@@ -12,7 +12,7 @@ from torch.optim import Adam
 from revolve2.actor_controller import ActorController
 from revolve2.serialization import SerializeError, StaticData
 
-from RL.interaction_buffer import Buffer
+from jlo.RL.interaction_buffer import Buffer
 from .actor_critic_network import Actor, ActorCritic, Critic, ObservationEncoder
 from .config import LR_ACTOR, LR_CRITIC, PPO_CLIP_EPS, LR_ACTOR, LR_CRITIC, N_EPOCHS, CRITIC_LOSS_COEFF, ENTROPY_COEFF, ACTOR_LOSS_COEFF
 

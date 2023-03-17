@@ -237,12 +237,11 @@ class LocalRunner(Runner):
                         self.set_actor_dof_position_targets(
                             env_handle, actor_handle, actor, targets
                         )
-
+                        #print(targets)
                 # sample state if it is time
                 if time >= last_sample_time + sample_step:
                     last_sample_time = int(time / sample_step) * sample_step
                     states.append(self._get_state(time))
-
                 # step simulation
                 self._gym.simulate(self._sim)
                 self._gym.fetch_results(self._sim, True)
@@ -388,7 +387,7 @@ class LocalRunner(Runner):
         result_queue: mp.Queue,  # type: ignore # TODO
         batch: Batch,
         sim_params: gymapi.SimParams,
-        headless: bool,
+        headless: bool
     ) -> None:
         _Simulator = cls._Simulator(batch, sim_params, headless)
         states = _Simulator.run()

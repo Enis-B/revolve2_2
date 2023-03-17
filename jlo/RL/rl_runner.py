@@ -344,7 +344,7 @@ class LocalRunner(Runner):
             for gymenv, environment_results in zip(
                 self._gymenvs, batch_results.environment_results
             ):
-                env_state = EnvironmentState(time, [])
+                env_state = EnvironmentState([]) ## (time,[])
                 for actor_handle in gymenv.actors:
                     pose = self._gym.get_actor_rigid_body_states(
                         gymenv.env, actor_handle, gymapi.STATE_POS

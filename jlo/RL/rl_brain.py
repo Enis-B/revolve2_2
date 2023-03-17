@@ -11,7 +11,7 @@ import numpy.typing as npt
 
 from revolve2.actor_controller import ActorController
 from revolve2.core.modular_robot import ActiveHinge, Body, Brain
-from RL.rl_controller import RLcontroller
+from jlo.RL.rl_controller import RLcontroller
 from .actor_critic_network import Actor, ActorCritic
 from .config import NUM_OBS_TIMES, OBS_DIM
 
