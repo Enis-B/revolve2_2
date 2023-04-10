@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
+def plot_stats(statistics, ylog=False, view=False, cnt = 0):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -19,13 +19,219 @@ def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
     best_fitness = [c.fitness for c in statistics.most_fit_genomes]
     avg_fitness = np.array(statistics.get_fitness_mean())
     stdev_fitness = np.array(statistics.get_fitness_stdev())
+    best_std = np.array(np.std(best_fitness))
 
     plt.plot(generation, avg_fitness, 'b-', label="average")
-    plt.plot(generation, avg_fitness - stdev_fitness, 'g-.', label="-1 sd")
-    plt.plot(generation, avg_fitness + stdev_fitness, 'g-.', label="+1 sd")
+    plt.fill_between(generation, avg_fitness - stdev_fitness, avg_fitness + stdev_fitness, alpha=0.2)
     plt.plot(generation, best_fitness, 'r-', label="best")
+    plt.fill_between(generation, best_fitness - best_std, best_fitness + best_std, alpha=0.2)
 
-    plt.title("Population's average and best fitness")
+    plt.title("Population's mean and best fitness")
+    plt.xlabel("Generations")
+    plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'avg_fitness_' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_stats_nobest(statistics, ylog=False, view=False, cnt = 0):
+    """ Plots the population's average and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(statistics.most_fit_genomes))
+    avg_fitness = np.array(statistics.get_fitness_mean())
+    stdev_fitness = np.array(statistics.get_fitness_stdev())
+
+    plt.plot(generation, avg_fitness, 'b-', label="average")
+    plt.fill_between(generation, avg_fitness - stdev_fitness, avg_fitness + stdev_fitness, alpha=0.2)
+
+    plt.title("Population's mean fitness")
+    plt.xlabel("Generations")
+    plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'avg_fitness_nobest_' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+
+def plot_stats2(statistics, ylog=False, view=False, cnt = 0):
+    """ Plots the population's median and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(statistics.most_fit_genomes))
+    median_fitness = np.array(statistics.get_fitness_median())
+    best_fitness = [c.fitness for c in statistics.most_fit_genomes]
+    stat25 = []
+    stat75 = []
+    for st in statistics.generation_statistics:
+        scores = []
+        for species_stats in st.values():
+            scores.extend(species_stats.values())
+        stat25.append(np.percentile(scores, 25))
+        stat75.append(np.percentile(scores, 75))
+
+    best25 = np.percentile(np.array(best_fitness),25)
+    best75 = np.percentile(np.array(best_fitness), 75)
+
+    plt.plot(generation, median_fitness, 'b-', label="median")
+    plt.fill_between(generation, stat25, stat75, alpha=0.2)
+    plt.plot(generation, best_fitness, 'r-', label="best")
+    plt.fill_between(generation, best25, best75, alpha=0.2)
+
+    plt.title("Population's best, median, 25th and 75th quartile")
+    plt.xlabel("Generations")
+    plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'median_fitness_' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_stats2_nobest(statistics, ylog=False, view=False, cnt = 0):
+    """ Plots the population's median and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(statistics.most_fit_genomes))
+    median_fitness = np.array(statistics.get_fitness_median())
+    stat25 = []
+    stat75 = []
+    for st in statistics.generation_statistics:
+        scores = []
+        for species_stats in st.values():
+            scores.extend(species_stats.values())
+        stat25.append(np.percentile(scores, 25))
+        stat75.append(np.percentile(scores, 75))
+
+    plt.plot(generation, median_fitness, 'b-', label="median")
+    plt.fill_between(generation, stat25, stat75, alpha=0.2)
+
+    plt.title("Population's median, 25th and 75th quartile")
+    plt.xlabel("Generations")
+    plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'median_fitness_nobest_' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_head_balance(statistics, head_balance,  ylog=False, view=False, cnt = 0):
+    """ Plots the avg. and best head balance of the robots across generations. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(statistics.most_fit_genomes))
+    mean_lst = []
+    max_lst = []
+    std_lst = []
+    for lst in head_balance:
+        mean_lst.append(np.mean(lst))
+        max_lst.append(np.max(lst))
+        std_lst.append(np.std(lst))
+
+    mean_lst = np.array(mean_lst)
+    std_lst = np.array(std_lst)
+    max_lst = np.array(max_lst)
+    max_std = np.std(max_lst)
+
+    plt.plot(generation, mean_lst, 'b-', label="avg. head balance ")
+    plt.fill_between(generation, mean_lst - std_lst, mean_lst + std_lst, alpha=0.2)
+    plt.plot(generation, max_lst, 'r-', label="best head balance")
+    plt.fill_between(generation, max_lst - max_std, max_lst + max_std, alpha=0.2)
+
+    plt.title("Head Balance across generations (1 being the most balanced)")
+    plt.xlabel("Generations")
+    plt.ylabel("Balance")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'head_balance_' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_head_balance_nobest(statistics, head_balance,  ylog=False, view=False, cnt = 0):
+    """ Plots the avg. and best head balance of the robots across generations. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(statistics.most_fit_genomes))
+    mean_lst = []
+    std_lst = []
+    for lst in head_balance:
+        mean_lst.append(np.mean(lst))
+        std_lst.append(np.std(lst))
+
+    mean_lst = np.array(mean_lst)
+    std_lst = np.array(std_lst)
+
+    plt.plot(generation, mean_lst, 'b-', label="avg. head balance ")
+    plt.fill_between(generation, mean_lst - std_lst, mean_lst + std_lst, alpha=0.2)
+
+    plt.title("Head Balance across generations (1 being the most balanced)")
+    plt.xlabel("Generations")
+    plt.ylabel("Balance")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'head_balance_nobest_' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_stats_avg(best, avg, stdev, gens, ylog=False, view=False, filename='avg_fitness.svg'):
+    """ Plots the population's average and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(gens)
+    best_fitness = best
+    avg_fitness = np.array(avg)
+    stdev_fitness = np.array(stdev)
+    best_std = np.std(np.array(best_fitness))
+
+    plt.plot(generation, avg_fitness, 'b-', label="average")
+    plt.fill_between(generation, avg_fitness - stdev_fitness, avg_fitness + stdev_fitness, alpha=0.2)
+    plt.plot(generation, best_fitness, 'r-', label="best")
+    plt.fill_between(generation, best_fitness - best_std, best_fitness + best_std, alpha=0.2)
+
+    plt.title("Population's mean, stdev and best fitness")
     plt.xlabel("Generations")
     plt.ylabel("Fitness")
     plt.grid()
@@ -39,25 +245,142 @@ def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
 
     plt.close()
 
-def plot_stats_hardware(statistics, ylog=False, view=False, filename='avg_fitness_hardware.svg'):
+
+def plot_stats_avg_nobest(best, avg, stdev, gens, ylog=False, view=False, filename='avg_fitness_nobest.svg'):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    generation = range(len(statistics.most_fit_genomes))
-    best_fitness = [c.fitness for c in statistics.most_fit_genomes]
-    avg_fitness = np.array(statistics.get_fitness_mean())
-    stdev_fitness = np.array(statistics.get_fitness_stdev())
+    generation = range(gens)
+    avg_fitness = np.array(avg)
+    stdev_fitness = np.array(stdev)
 
     plt.plot(generation, avg_fitness, 'b-', label="average")
-    plt.plot(generation, avg_fitness - stdev_fitness, 'g-.', label="-1 sd")
-    plt.plot(generation, avg_fitness + stdev_fitness, 'g-.', label="+1 sd")
-    plt.plot(generation, best_fitness, 'r-', label="best")
+    plt.fill_between(generation, avg_fitness - stdev_fitness, avg_fitness + stdev_fitness, alpha=0.2)
 
-    plt.title("Population's average and best fitness")
+    plt.title("Population's mean and stdev fitness")
     plt.xlabel("Generations")
     plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_stats2_avg(median, stat25, stat75, best, gens, ylog=False, view=False, filename='median_fitness.svg'):
+    """ Plots the population's median and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(gens)
+    median_fitness = np.array(median)
+    best_fitness = best
+    best25 = np.percentile(np.array(best_fitness), 25)
+    best75 = np.percentile(np.array(best_fitness), 75)
+
+    plt.plot(generation, median_fitness, 'b-', label="median")
+    plt.fill_between(generation, stat25, stat75, alpha=0.2)
+    plt.plot(generation, best_fitness, 'r-', label="best")
+    plt.fill_between(generation, best25, best75, alpha=0.2)
+
+    plt.title("Population's best, median, 25th and 75th quartile")
+    plt.xlabel("Generations")
+    plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+
+def plot_stats2_avg_nobest(median, stat25, stat75, best, gens, ylog=False, view=False, filename='median_fitness_nobest.svg'):
+    """ Plots the population's median and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(gens)
+    median_fitness = np.array(median)
+
+    plt.plot(generation, median_fitness, 'b-', label="median")
+    plt.fill_between(generation, stat25, stat75, alpha=0.2)
+
+    plt.title("Population's median, 25th and 75th quartile")
+    plt.xlabel("Generations")
+    plt.ylabel("Fitness")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_head_balance_avg(mean, max, std, gens,  ylog=False, view=False, filename='head_balance.svg'):
+    """ Plots the avg. and best head balance of the robots across generations. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(gens)
+
+    mean_lst = np.array(mean)
+    std_lst = np.array(std)
+    max_lst = np.array(max)
+    max_std = np.std(max_lst)
+
+    plt.plot(generation, mean_lst, 'b-', label="avg. head balance ")
+    plt.fill_between(generation, mean_lst - std_lst, mean_lst + std_lst, alpha=0.2)
+    plt.plot(generation, max_lst, 'r-', label="best head balance")
+    plt.fill_between(generation, max_lst - max_std, max_lst + max_std, alpha=0.2)
+
+    plt.title("Head Balance across generations (1 being the most balanced)")
+    plt.xlabel("Generations")
+    plt.ylabel("Balance")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+
+def plot_head_balance_avg_nobest(mean, max, std, gens, ylog=False, view=False, filename='head_balance_nobest.svg'):
+    """ Plots the avg. and best head balance of the robots across generations. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(gens)
+
+    mean_lst = np.array(mean)
+    std_lst = np.array(std)
+
+    plt.plot(generation, mean_lst, 'b-', label="avg. head balance ")
+    plt.fill_between(generation, mean_lst - std_lst, mean_lst + std_lst, alpha=0.2)
+
+    plt.title("Head Balance across generations (1 being the most balanced)")
+    plt.xlabel("Generations")
+    plt.ylabel("Balance")
     plt.grid()
     plt.legend(loc="best")
     if ylog:
@@ -118,7 +441,7 @@ def plot_spikes(spikes, view=False, filename=None, title=None):
     return fig
 
 
-def plot_species(statistics, view=False, filename='speciation.svg'):
+def plot_species(statistics, view=False, cnt = 0):
     """ Visualizes speciation throughout evolution. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -134,7 +457,7 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
     plt.title("Speciation")
     plt.ylabel("Size per Species")
     plt.xlabel("Generations")
-
+    filename = 'speciation_' + str(cnt) + '.svg'
     plt.savefig(filename)
 
     if view:
@@ -143,7 +466,7 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
     plt.close()
 
 
-def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
+def draw_net(config, genome, view=False, cnt = 0, node_names=None, show_disabled=True, prune_unused=False,
              node_colors=None, fmt='svg'):
     """ Receives a genome and draws a neural network with arbitrary topology. """
     # Attributes for network nodes.
@@ -225,6 +548,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
             width = str(0.1 + abs(cg.weight / 5.0))
             dot.edge(a, b, _attributes={'style': style, 'color': color, 'penwidth': width})
 
+    filename = 'digraph_' + str(cnt) + '.gv'
     dot.render(filename, view=view)
 
     return dot

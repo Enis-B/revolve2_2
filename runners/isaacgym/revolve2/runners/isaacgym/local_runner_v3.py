@@ -2,6 +2,7 @@ import math
 import multiprocessing as mp
 import os
 import tempfile
+import time
 from dataclasses import dataclass
 from typing import List, Optional
 from sklearn import preprocessing
@@ -37,7 +38,7 @@ from revolve2.core.modular_robot.brains import *
 from revolve2.core.physics.running import ActorControl, Batch, Environment, PosedActor
 #from revolve2.runners.isaacgym import LocalRunner
 from revolve2.core.physics.actor.urdf import to_urdf as physbot_to_urdf
-
+from revolve2.core.modular_robot.render.render import Render
 from jlo.RL.rl_brain import RLbrain
 
 from tensorforce.environments import Environment as tfenv
@@ -502,7 +503,10 @@ class LocalRunner(Runner):
 
             fitness = self._calculate_velocity(states[0].envs[0].actor_states[0], self._get_state(time).envs[0].actor_states[0],
                                               0.0, self._get_state(time).time_seconds)
-            return fitness
+            with open('genome_fitness', 'wb') as fp:
+                pickle.dump(fitness, fp)
+
+            return states
 
         '''
         def states(self):
@@ -589,8 +593,6 @@ class LocalRunner(Runner):
             velocity_xy = displacement_xy/(time2 - time1)
 
             return displacement_xy
-
-
 
         def set_actor_dof_position_targets(
             self,
@@ -805,7 +807,7 @@ class LocalRunner(Runner):
         headless: bool
     ) -> None:
         _Simulator = cls._Simulator(batch, sim_params, headless)
-        with open('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat_test9xy/best_genome', 'rb') as fp:
+        with open('/revolve2/runners/isaacgym/neat/neat_test9xy/best_genome', 'rb') as fp:
             real_winner = pickle.load(fp)
         config_file = 'neat_config'
         config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -825,14 +827,16 @@ class LocalRunner(Runner):
             args=(net, result_queue, batch, self._sim_params, self._headless),
         )
         process.start()
+        states = []
         # states are sent state by state(every sample)
         # because sending all at once is too big for the queue.
         # should be good enough for now.
         # if the program hangs here in the future,
         # improve the way the results are passed back to the parent program.
+        while (state := result_queue.get()) is not None:
+            states.append(state)
         process.join()
-        fitness = result_queue.get()
-        return fitness
+        return states
 
     @classmethod
     def _run_batch_impl_v3(
@@ -844,14 +848,22 @@ class LocalRunner(Runner):
         headless: bool
     ) -> None:
         _Simulator = cls._Simulator(batch, sim_params, headless)
-        fitness = _Simulator.run_v3(net)
-        result_queue.put(fitness)
+        states = _Simulator.run_v3(net)
+        for state in states:
+            result_queue.put(state)
+        result_queue.put(None)
 
 
 class CustomEnvironment(tfenv):
 
     def __init__(self):
         super().__init__()
+        self.head_balance = []
+
+    def get_head_balance(self):
+        return self.head_balance
+    def set_head_balance(self, head_balance):
+        self.head_balance = head_balance
 
     def states(self):
         # return sim._controller.get_dof_targets()
@@ -942,6 +954,7 @@ class CustomEnvironment(tfenv):
         control_frequency = 8
         robot = self.make_robot()
         headless = True
+        head_balance = []
         for genome_id, genome in genomes:
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             batch = Batch(
@@ -963,10 +976,112 @@ class CustomEnvironment(tfenv):
             batch.environments.append(env)
             runner = LocalRunner(LocalRunner.SimParams(),headless=headless)
             #print("okay 1")
-            fitness = runner.run_batch_v3(net,batch)
+            states = runner.run_batch_v3(net,batch)
             #print("okay 2")
+            with open('genome_fitness','rb') as fp:
+                fitness = pickle.load(fp)
             genome.fitness = fitness
-            print("Genome Fitness: ", genome.fitness)
+            print("Genome Fitness: ", genome.fitness, '\n')
+            balance = self._head_balance(states)
+            head_balance.append(balance)
+        self.head_balance.append(head_balance)
+
+
+    def simulate_v4(self, genome, config):
+        control_frequency = 8
+        robot = self.make_robot()
+        headless = False
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        batch = Batch(
+            simulation_time=30,
+            sampling_frequency=8,
+            control_frequency=control_frequency,
+            control=self._control,
+        )
+        actor, self._controller = robot.make_actor_and_controller()
+        env = Environment()
+        env.actors.append(
+            PosedActor(
+                actor,
+                Vector3([0.0, 0.0, 0.1]),
+                Quaternion(),
+                [0.0 for _ in self._controller.get_dof_targets()],
+            )
+        )
+        batch.environments.append(env)
+        runner = LocalRunner(LocalRunner.SimParams(),headless=headless)
+        #print("okay 1")
+        states = runner.run_batch_v3(net,batch)
+        #print("okay 2")
+        with open('genome_fitness','rb') as fp:
+            fitness = pickle.load(fp)
+        return fitness, states
+
+    def _head_balance(self, _states):
+        """
+                Returns the inverse of the average rotation of the head in the roll and pitch dimensions.
+                The closest to 1 the most balanced.
+                :return:
+                """
+
+        if _states is None:
+            return -math.inf
+
+        _orientations = []
+        #print(_states)
+        #print(len(_states))
+        for idx_state in range(0, len(_states)):
+            _orientation = _states[idx_state].envs[0].actor_states[0].serialize()['orientation']
+            # w, x, y, z
+            #qua = Quaternion(value=(_orientations[0], _orientations[1], _orientations[2], _orientations[3]))
+            r,p,y = self.euler_from_quaternion(_orientation[1], _orientation[2], _orientation[3],
+                                                      _orientation[0])
+            eulers = [r,p,y]  # roll / pitch / yaw
+            #print(_orientation, '\n', eulers)
+            _orientations.append(eulers)
+
+        roll = 0
+        pitch = 0
+        instants = len(_states)
+        # print(_orientations)
+
+        for o in _orientations:
+            roll = roll + abs(o[0]) * 180 / math.pi
+            pitch = pitch + abs(o[1]) * 180 / math.pi
+
+        #  accumulated angles for each type of rotation
+        #  divided by iterations * maximum angle * each type of rotation
+        if instants == 0:
+            balance = None
+        else:
+            balance = (roll + pitch) / (instants * 180 * 2)
+            # turns imbalance to balance
+            balance = 1 - balance
+
+        return balance
+
+    def euler_from_quaternion(self, x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+
+        return roll_x, pitch_y, yaw_z  # in radians
+
 
     def _control(self, dt: float, control: ActorControl, action) -> None:
         self._controller.step(dt)
@@ -992,6 +1107,116 @@ class CustomEnvironment(tfenv):
         body.core.right.attachment.attachment = Brick(0.0)
         '''
 
+        ## Ant 
+        body.core.right = ActiveHinge(0.0)
+        body.core.right.attachment = Brick(0.0)
+        
+        body.core.left = ActiveHinge(0.0)
+        body.core.left.attachment = Brick(0.0)
+        
+        body.core.back = ActiveHinge(math.pi / 2)
+        body.core.back.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.left = ActiveHinge(0.0)
+        body.core.back.attachment.left.attachment = Brick(0.0)
+        body.core.back.attachment.right = ActiveHinge(0.0)
+        body.core.back.attachment.right.attachment = Brick(0.0)
+        body.core.back.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.left = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.left.attachment = Brick(0.0)
+        body.core.back.attachment.front.attachment.right = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.right.attachment = Brick(0.0)
+
+        '''
+        ## Super Ant
+        body.core.right = ActiveHinge(math.pi / 2)
+        body.core.right.attachment = Brick(math.pi / 2)
+        body.core.right.attachment.front = ActiveHinge(0.0)
+        body.core.right.attachment.front.attachment = Brick(0.0)
+
+        body.core.left = ActiveHinge(math.pi / 2)
+        body.core.left.attachment = Brick(math.pi / 2)
+        body.core.left.attachment.front = ActiveHinge(0.0)
+        body.core.left.attachment.front.attachment = Brick(0.0)
+
+        body.core.back = ActiveHinge(math.pi / 2)
+        body.core.back.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment = Brick(math.pi / 2)
+
+        body.core.back.attachment.front.attachment.left = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.left.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.left.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.left.attachment.front.attachment = Brick(0.0)
+        
+        body.core.back.attachment.front.attachment.right = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.right.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.right.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.right.attachment.front.attachment = Brick(0.0)
+        
+        body.core.back.attachment.front.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment = Brick(math.pi / 2)
+        
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.left = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.left.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.left.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.left.attachment.front.attachment = Brick(0.0)
+        
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.right = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.right.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.right.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.front.attachment.front.attachment.right.attachment.front.attachment = Brick(0.0)
+        '''
+        '''
+        ## Gecko
+        body.core.left = ActiveHinge(0.0)
+        body.core.left.attachment = Brick(0.0)
+
+        body.core.right = ActiveHinge(0.0)
+        body.core.right.attachment = Brick(0.0)
+
+        body.core.back = ActiveHinge(math.pi / 2)
+        body.core.back.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.left = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.left.attachment = Brick(0.0)
+        body.core.back.attachment.front.attachment.right = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.right.attachment = Brick(0.0)
+        '''
+        '''
+        ## Super Gecko
+        body.core.left = ActiveHinge(math.pi / 2)
+        body.core.left.attachment = Brick(math.pi / 2)
+        body.core.left.attachment.front = ActiveHinge(0.0)
+        body.core.left.attachment.front.attachment = Brick(0.0)
+
+        body.core.right = ActiveHinge(math.pi / 2)
+        body.core.right.attachment = Brick(math.pi / 2)
+        body.core.right.attachment.front = ActiveHinge(0.0)
+        body.core.right.attachment.front.attachment = Brick(0.0)
+
+        body.core.back = ActiveHinge(math.pi / 2)
+        body.core.back.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.front = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment = Brick(math.pi / 2)
+
+        body.core.back.attachment.front.attachment.front.attachment.left = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.left.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.left.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.front.attachment.left.attachment.front.attachment = Brick(0.0)
+        
+        body.core.back.attachment.front.attachment.front.attachment.right = ActiveHinge(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.right.attachment = Brick(math.pi / 2)
+        body.core.back.attachment.front.attachment.front.attachment.right.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.front.attachment.right.attachment.front.attachment = Brick(0.0)
+        '''
+
+        '''
         ## Spider
         body.core.left = ActiveHinge(np.pi / 2.0)
         body.core.left.attachment = Brick(-np.pi / 2.0)
@@ -1012,6 +1237,37 @@ class CustomEnvironment(tfenv):
         body.core.back.attachment = Brick(-np.pi / 2.0)
         body.core.back.attachment.front = ActiveHinge(0.0)
         body.core.back.attachment.front.attachment = Brick(0.0)
+        '''
+        '''
+        ## Super Spider
+        body.core.left = ActiveHinge(np.pi / 2.0)
+        body.core.left.attachment = Brick(-np.pi / 2.0)
+        body.core.left.attachment.front = ActiveHinge(np.pi / 2)
+        body.core.left.attachment.front.attachment = Brick(-np.pi / 2)
+        body.core.left.attachment.front.attachment.front = ActiveHinge(0.0)
+        body.core.left.attachment.front.attachment.front.attachment = Brick(0.0)
+
+        body.core.right = ActiveHinge(np.pi / 2.0)
+        body.core.right.attachment = Brick(-np.pi / 2.0)
+        body.core.right.attachment.front = ActiveHinge(np.pi / 2)
+        body.core.right.attachment.front.attachment = Brick(-np.pi / 2)
+        body.core.right.attachment.front.attachment.front = ActiveHinge(0.0)
+        body.core.right.attachment.front.attachment.front.attachment = Brick(0.0)
+
+        body.core.front = ActiveHinge(np.pi / 2.0)
+        body.core.front.attachment = Brick(-np.pi / 2.0)
+        body.core.front.attachment.front = ActiveHinge(np.pi / 2)
+        body.core.front.attachment.front.attachment = Brick(-np.pi / 2)
+        body.core.front.attachment.front.attachment.front = ActiveHinge(0.0)
+        body.core.front.attachment.front.attachment.front.attachment = Brick(0.0)
+
+        body.core.back = ActiveHinge(np.pi / 2.0)
+        body.core.back.attachment = Brick(-np.pi / 2.0)
+        body.core.back.attachment.front = ActiveHinge(np.pi / 2)
+        body.core.back.attachment.front.attachment = Brick(-np.pi / 2)
+        body.core.back.attachment.front.attachment.front = ActiveHinge(0.0)
+        body.core.back.attachment.front.attachment.front.attachment = Brick(0.0)
+        '''
 
         body.finalize()
         rng = Random()
@@ -1020,7 +1276,7 @@ class CustomEnvironment(tfenv):
         # brain = RLbrain(from_checkpoint=False)
         robot = ModularRobot(body, brain)
         return robot
-
+'''
 async def main() -> None:
     tfe = CustomEnvironment()
     robot = tfe.make_robot()
@@ -1035,48 +1291,223 @@ if __name__ == "__main__":
 
 '''
 def main() -> None:
-    tfe = CustomEnvironment()
-    config_file = 'neat_config'
-    config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                         config_file)
+    mode = 'train1'
+    avg2_fitness = []
+    std2_fitness = []
+    best2_fitness = []
+    median2_fitness = []
+    stat25_2 = []
+    stat75_2 = []
+    mean2_lst = []
+    max2_lst = []
+    std2_lst = []
+    ini_total = time.time()
+    if mode == 'train':
+        for i in range(10):
+            print("-----RUN "+ str(i)+'-----')
+            ini = time.time()
+            tfe = CustomEnvironment()
+            config_file = 'neat_config'
+            config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                 neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                                 config_file)
 
-    # Create the population, which is the top-level object for a NEAT run.
-    p = neat.Population(config)
+            # Create the population, which is the top-level object for a NEAT run.
+            p = neat.Population(config)
 
-    #p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-49')
+            #p = neat.Checkpointer.restore_checkpoint('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat_test9xy/neat-checkpoint-49')
 
-    # Add a stdout reporter to show progress in the terminal.
-    p.add_reporter(neat.StdOutReporter(True))
-    stats = neat.StatisticsReporter()
-    p.add_reporter(stats)
-    p.add_reporter(neat.Checkpointer(5))
-    #genomes = []
-    #for i in p.population:
-    #    k = (i, p.population[i])
-    #    genomes.append(k)
-    # Run for up to x generations.
-    #print(genomes)
-    winner = p.run(tfe.simulate_v3, 50)
+            # Add a stdout reporter to show progress in the terminal.
+            p.add_reporter(neat.StdOutReporter(True))
+            stats = neat.StatisticsReporter()
+            p.add_reporter(stats)
+            p.add_reporter(neat.Checkpointer(generation_interval=40,time_interval_seconds=None, filename_prefix='checkpoint_'+str(i)+'_'))
+            #genomes = []
+            #for i in p.population:
+            #    k = (i, p.population[i])
+            #    genomes.append(k)
+            # Run for up to x generations.
+            #print(genomes)
 
-    # Display the winning genome (in population of last generation)
+            # Run for up to x generations in parallel.
+            #pe = neat.ParallelEvaluator(3, tfe.simulate_v4)
+            #winner = p.run(pe.evaluate, 5)
 
-    print('\nBest genome:\n{!s}'.format(winner))
+            winner = p.run(tfe.simulate_v3, 40)
+            # Display the winning genome (in population of last generation)
+            print('\nBest genome:\n{!s}'.format(winner))
 
-    ## Overall best genome
-    real_winner = stats.best_genome()
+            ## Overall best genome
+            real_winner = stats.best_genome()
+            head_balance = tfe.get_head_balance()
 
-    # Plots for fitness, network and speciation
-    visualize.draw_net(config, winner, True)
-    visualize.plot_stats(stats, ylog=False, view=True)
-    visualize.plot_species(stats, view=True)
+            # Plots for fitness, network and speciation
+            visualize.plot_stats(stats,cnt=i, ylog=False, view=False)
+            visualize.plot_stats2(stats,cnt=i, ylog=False, view=False)
+            visualize.plot_head_balance(stats, head_balance,cnt=i, ylog=False, view=False)
 
-    ##
-    with open('best_genome', 'wb') as fp:
-        pickle.dump(real_winner, fp)
-    with open('winner', 'wb') as fp:
-        pickle.dump(winner, fp)
+            visualize.plot_stats_nobest(stats, cnt=i, ylog=False, view=False)
+            visualize.plot_stats2_nobest(stats, cnt=i, ylog=False, view=False)
+            visualize.plot_head_balance_nobest(stats, head_balance, cnt=i, ylog=False, view=False)
+
+            visualize.draw_net(config, real_winner,cnt=i, view=False)
+            visualize.plot_species(stats,cnt=i, view=False)
+            ##
+            with open('best_genome_'+ str(i), 'wb') as fp:
+                pickle.dump(real_winner, fp)
+
+            with open('winner_'+str(i), 'wb') as fp:
+                pickle.dump(winner, fp)
+
+            best_fitness = [c.fitness for c in stats.most_fit_genomes]
+            avg_fitness = stats.get_fitness_mean()
+            stdev_fitness = stats.get_fitness_stdev()
+            median_fitness = stats.get_fitness_median()
+            stat25 = []
+            stat75 = []
+            for st in stats.generation_statistics:
+                scores = []
+                for species_stats in st.values():
+                    scores.extend(species_stats.values())
+                stat25.append(np.percentile(scores, 25))
+                stat75.append(np.percentile(scores, 75))
+
+            mean_lst = []
+            max_lst = []
+            std_lst = []
+            for lst in head_balance:
+                mean_lst.append(np.mean(lst))
+                max_lst.append(np.max(lst))
+                std_lst.append(np.std(lst))
+
+            tfe.set_head_balance([])
+
+            if i > 0:
+                avg2_fitness = [ele1 + ele2 for ele1, ele2 in zip(avg2_fitness, avg_fitness)]
+                std2_fitness = [ele1 + ele2 for ele1, ele2 in zip(std2_fitness, stdev_fitness)]
+                best2_fitness = [ele1 + ele2 for ele1, ele2 in zip(best2_fitness, best_fitness)]
+                median2_fitness = [ele1 + ele2 for ele1, ele2 in zip(median2_fitness, median_fitness)]
+                stat25_2 = [ele1 + ele2 for ele1, ele2 in zip(stat25_2, stat25)]
+                stat75_2 = [ele1 + ele2 for ele1, ele2 in zip(stat75_2, stat75)]
+                mean2_lst = [ele1 + ele2 for ele1, ele2 in zip(mean2_lst, mean_lst)]
+                max2_lst = [ele1 + ele2 for ele1, ele2 in zip(max2_lst, max_lst)]
+                std2_lst = [ele1 + ele2 for ele1, ele2 in zip(std2_lst, std_lst)]
+            else:
+                avg2_fitness = avg_fitness
+                std2_fitness = stdev_fitness
+                best2_fitness = best_fitness
+                median2_fitness = median_fitness
+                stat25_2 = stat25
+                stat75_2 = stat75
+                mean2_lst = mean_lst
+                max2_lst = max_lst
+                std2_lst = std_lst
+
+            fim = time.time()  # prints execution time
+            print('\nExecution time: ' + str(round((fim - ini) / 60)) + ' minutes \n')
+
+        avg2_fitness = [number / 10 for number in avg2_fitness]
+        std2_fitness = [number / 10 for number in std2_fitness]
+        best2_fitness = [number / 10 for number in best2_fitness]
+        median2_fitness = [number / 10 for number in median2_fitness]
+        stat25_2 = [number / 10 for number in stat25_2]
+        stat75_2 = [number / 10 for number in stat75_2]
+        mean2_lst = [number / 10 for number in mean2_lst]
+        max2_lst = [number / 10 for number in max2_lst]
+        std2_lst = [number / 10 for number in std2_lst]
+
+        gens = 40
+
+        # Plots for fitness, network and speciation
+        visualize.plot_stats_avg(best2_fitness,avg2_fitness,std2_fitness,gens, ylog=False, view=True)
+        visualize.plot_stats2_avg(median2_fitness,stat25_2,stat75_2,best2_fitness,gens, ylog=False, view=True)
+        visualize.plot_head_balance_avg(mean2_lst,max2_lst,std2_lst,gens, ylog=False, view=True)
+
+        visualize.plot_stats_avg_nobest(best2_fitness, avg2_fitness, std2_fitness, gens, ylog=False, view=True)
+        visualize.plot_stats2_avg_nobest(median2_fitness, stat25_2, stat75_2, best2_fitness, gens, ylog=False, view=True)
+        visualize.plot_head_balance_avg_nobest(mean2_lst, max2_lst, std2_lst, gens, ylog=False, view=True)
+
+        fim_total = time.time()  # prints total execution time
+        print('\nTotal Execution time: ' + str(round((fim_total - ini_total) / 60)) + ' minutes \n')
+    elif mode == 'test':
+        tfe = CustomEnvironment()
+
+        #robot = tfe.make_robot()
+        #render = Render()
+        #img_path = 'robot.png'
+        #render.render_robot(robot.body.core, img_path)
+
+        with open('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat/neat_test10xy/test5/best_genome_4', 'rb') as fp:
+            real_winner = pickle.load(fp)
+        config_file = 'neat_config'
+        config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                             neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                             config_file)
+        fitness,states = tfe.simulate_v4(real_winner,config)
+        print("Genome fitness: ", fitness)
+        balance = tfe._head_balance(states)
+        print("Head balance: ", balance)
+
+    elif mode == 'train1':
+        i = 0
+        print("-----RUN " + str(i) + '-----')
+        ini = time.time()
+        tfe = CustomEnvironment()
+        config_file = 'neat_config'
+        config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                             neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                             config_file)
+
+        # Create the population, which is the top-level object for a NEAT run.
+        p = neat.Population(config)
+
+        #p = neat.Checkpointer.restore_checkpoint('neat/neat_test12xy11/checkpoint_0_49')
+
+        # Add a stdout reporter to show progress in the terminal.
+        p.add_reporter(neat.StdOutReporter(True))
+        stats = neat.StatisticsReporter()
+        p.add_reporter(stats)
+        p.add_reporter(neat.Checkpointer(generation_interval=50, time_interval_seconds=None,
+                                         filename_prefix='checkpoint_' + str(i) + '_'))
+        # genomes = []
+        # for i in p.population:
+        #    k = (i, p.population[i])
+        #    genomes.append(k)
+        # Run for up to x generations.
+        # print(genomes)
+
+        # Run for up to x generations in parallel.
+        # pe = neat.ParallelEvaluator(3, tfe.simulate_v4)
+        # winner = p.run(pe.evaluate, 5)
+
+        winner = p.run(tfe.simulate_v3, 50)
+        # Display the winning genome (in population of last generation)
+        print('\nBest genome:\n{!s}'.format(winner))
+
+        ## Overall best genome
+        real_winner = stats.best_genome()
+        head_balance = tfe.get_head_balance()
+
+        # Plots for fitness, network and speciation
+        visualize.plot_stats(stats, cnt=i, ylog=False, view=False)
+        visualize.plot_stats2(stats, cnt=i, ylog=False, view=False)
+        visualize.plot_head_balance(stats, head_balance, cnt=i, ylog=False, view=False)
+
+        visualize.plot_stats_nobest(stats, cnt=i, ylog=False, view=False)
+        visualize.plot_stats2_nobest(stats, cnt=i, ylog=False, view=False)
+        visualize.plot_head_balance_nobest(stats, head_balance, cnt=i, ylog=False, view=False)
+
+        visualize.draw_net(config, real_winner, cnt=i, view=False)
+        visualize.plot_species(stats, cnt=i, view=False)
+        ##
+        with open('best_genome_' + str(i), 'wb') as fp:
+            pickle.dump(real_winner, fp)
+
+        with open('winner_' + str(i), 'wb') as fp:
+            pickle.dump(winner, fp)
+
+        fim = time.time()  # prints execution time
+        print('\nExecution time: ' + str(round((fim - ini) / 60)) + ' minutes \n')
 
 if __name__ == "__main__":
     main()
-'''

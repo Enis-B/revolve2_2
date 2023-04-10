@@ -8,7 +8,8 @@ from ._not_finalized_error import NotFinalizedError
 class Module:
     _children: List[Optional[Module]]
     _rotation: float
-
+    # the rotation regarding the ground: for differentiating horizontal or vertical joints
+    _absolute_rotation: int
     # The following members are initialized by the ModularRobot finalize function:
     _id: Optional[int]
     _parent: Optional[Module]
@@ -17,6 +18,9 @@ class Module:
     def __init__(self, num_children: int, rotation: float):
         self._children = [None] * num_children
         self._rotation = rotation
+        self.rgb = None
+        self.turtle_direction = None
+        self.substrate_coordinates = None
 
         self._id = None
         self._parent = None
@@ -29,6 +33,20 @@ class Module:
     @property
     def rotation(self) -> float:
         return self._rotation
+
+    def has_children(self) -> bool:
+        """
+        Check wheter module has children
+        :return: True if module has children
+        """
+        has_children = False
+        if self._children == {1: None}: return False
+
+        for i, child in enumerate(self._children):
+            if child is not None:
+                has_children = True
+
+        return has_children
 
     @property
     def id(self) -> int:
