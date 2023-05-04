@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="2ab4dd73-1321-415f-af2f-4672a2aab792" name="ripper1">
+        <fileTransfer rootFolder="/home/enisb" accessType="SFTP" host="ripper1" port="22" sshConfigId="c7f6bf02-d1d1-4f98-b436-3f24ce7785fd" sshConfig="enisb@ripper1:22 key" keyPair="true">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

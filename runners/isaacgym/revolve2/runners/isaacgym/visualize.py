@@ -86,13 +86,13 @@ def plot_stats2(statistics, ylog=False, view=False, cnt = 0):
         stat25.append(np.percentile(scores, 25))
         stat75.append(np.percentile(scores, 75))
 
-    best25 = np.percentile(np.array(best_fitness),25)
-    best75 = np.percentile(np.array(best_fitness), 75)
+    #best25 = np.percentile(best_fitness,25)
+    #best75 = np.percentile(best_fitness, 75)
 
     plt.plot(generation, median_fitness, 'b-', label="median")
     plt.fill_between(generation, stat25, stat75, alpha=0.2)
     plt.plot(generation, best_fitness, 'r-', label="best")
-    plt.fill_between(generation, best25, best75, alpha=0.2)
+    #plt.fill_between(generation, best25, best75, alpha=0.2)
 
     plt.title("Population's best, median, 25th and 75th quartile")
     plt.xlabel("Generations")
@@ -214,6 +214,31 @@ def plot_head_balance_nobest(statistics, head_balance,  ylog=False, view=False, 
 
     plt.close()
 
+def plot_outputs(statistics, outputs,  ylog=False, view=False, cnt = 0):
+    """ Plots the avg. outputs of the robots across generations. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(statistics.most_fit_genomes))
+
+    for i in range(len(outputs[0])):
+        plt.plot(generation, [pt[i] for pt in outputs], label='output %s' % i)
+
+    plt.title("Outputs across generations")
+    plt.xlabel("Generations")
+    plt.ylabel("Outputs")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+    filename = 'outputs' + str(cnt) + '.svg'
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
 def plot_stats_avg(best, avg, stdev, gens, ylog=False, view=False, filename='avg_fitness.svg'):
     """ Plots the population's average and best fitness. """
     if plt is None:
@@ -282,13 +307,13 @@ def plot_stats2_avg(median, stat25, stat75, best, gens, ylog=False, view=False, 
     generation = range(gens)
     median_fitness = np.array(median)
     best_fitness = best
-    best25 = np.percentile(np.array(best_fitness), 25)
-    best75 = np.percentile(np.array(best_fitness), 75)
+    #best25 = np.percentile(np.array(best_fitness), 25)
+    #best75 = np.percentile(np.array(best_fitness), 75)
 
     plt.plot(generation, median_fitness, 'b-', label="median")
     plt.fill_between(generation, stat25, stat75, alpha=0.2)
     plt.plot(generation, best_fitness, 'r-', label="best")
-    plt.fill_between(generation, best25, best75, alpha=0.2)
+    #plt.fill_between(generation, best25, best75, alpha=0.2)
 
     plt.title("Population's best, median, 25th and 75th quartile")
     plt.xlabel("Generations")
@@ -381,6 +406,31 @@ def plot_head_balance_avg_nobest(mean, max, std, gens, ylog=False, view=False, f
     plt.title("Head Balance across generations (1 being the most balanced)")
     plt.xlabel("Generations")
     plt.ylabel("Balance")
+    plt.grid()
+    plt.legend(loc="best")
+    if ylog:
+        plt.gca().set_yscale('symlog')
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_avg_outputs(avg_outputs, gens, ylog=False, view=False, filename='outputs_avg.svg'):
+    """ Plots the avg. of avg. outputs of the robots across generations. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(gens)
+
+    for i in range(len(avg_outputs[0])):
+        plt.plot(generation, [pt[i] for pt in avg_outputs], label='output %s' % i)
+
+    plt.title("Avg. Outputs across generations")
+    plt.xlabel("Generations")
+    plt.ylabel("Outputs")
     plt.grid()
     plt.legend(loc="best")
     if ylog:

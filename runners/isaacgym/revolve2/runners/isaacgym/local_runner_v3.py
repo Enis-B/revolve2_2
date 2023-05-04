@@ -432,7 +432,9 @@ class LocalRunner(Runner):
 
         def run_v3(self,net):
             fitness = 0
+            reps = 0
             outputs = []
+            outputs_sum = []
             states: List[RunnerState] = []
             control_step = 1 / self._batch.control_frequency
             sample_step = 1 / self._batch.sampling_frequency
@@ -453,6 +455,7 @@ class LocalRunner(Runner):
                     if len(outputs) > 0:
                         #print("Output: ", outputs)
                         # print("Targets: ", targets)
+                        #outputs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
                         self._batch.control(control_step, control, outputs)
                     for (env_index, actor_index, targets) in control._dof_targets:
                         env_handle = self._gymenvs[env_index].env
@@ -486,8 +489,21 @@ class LocalRunner(Runner):
                     #hinges_pos = preprocessing.normalize(hinges_pos, norm='l2')
                     #hinges_vel = preprocessing.normalize(hinges_vel, norm='l2')
                     hinges = np.append(hinges_pos,hinges_vel)
-                    outputs = net.activate(hinges[:8])
+                    inputs = np.ndarray.flatten(hinges_pos)
+
+                    reduced_inputs = []
+                    #for cnt in range(0,len(inputs)):
+                    #    if cnt not in [1,3,8,10]: #1,3,8,10 (outer) 0,2,7,9 (inner) - supergecko / 0,3,6,9 (inner) 2,5,8,11 (outer) - superspider
+                    #        reduced_inputs.append(inputs[cnt])
+                    #outputs = net.activate(reduced_inputs)
+                    outputs = net.activate(inputs)
                     #print(outputs)
+                    if outputs_sum == [] :
+                        outputs_sum = outputs
+                        reps+=1
+                    else:
+                        outputs_sum = [sum(i) for i in zip(outputs,outputs_sum)]
+                        reps+=1
                     old_position = new_position
 
                 # step simulation
@@ -505,6 +521,9 @@ class LocalRunner(Runner):
                                               0.0, self._get_state(time).time_seconds)
             with open('genome_fitness', 'wb') as fp:
                 pickle.dump(fitness, fp)
+            avg_output = [x / reps for x in outputs_sum]
+            with open('outputs','wb') as gp:
+                pickle.dump(avg_output, gp)
 
             return states
 
@@ -859,12 +878,16 @@ class CustomEnvironment(tfenv):
     def __init__(self):
         super().__init__()
         self.head_balance = []
+        self.outputs = []
 
     def get_head_balance(self):
         return self.head_balance
     def set_head_balance(self, head_balance):
         self.head_balance = head_balance
-
+    def get_outputs(self):
+        return self.outputs
+    def set_outputs(self, outputs):
+        self.outputs = outputs
     def states(self):
         # return sim._controller.get_dof_targets()
         min_value = -1.0
@@ -955,10 +978,12 @@ class CustomEnvironment(tfenv):
         robot = self.make_robot()
         headless = True
         head_balance = []
+        avg_outputs = []
+        reps = 0
         for genome_id, genome in genomes:
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             batch = Batch(
-                simulation_time=30,
+                simulation_time=20,
                 sampling_frequency=8,
                 control_frequency=control_frequency,
                 control=self._control,
@@ -982,9 +1007,19 @@ class CustomEnvironment(tfenv):
                 fitness = pickle.load(fp)
             genome.fitness = fitness
             print("Genome Fitness: ", genome.fitness, '\n')
+            with open('outputs', 'rb') as gp:
+                outputs = pickle.load(gp)
+            if avg_outputs == []:
+                avg_outputs = outputs
+                reps +=1
+            else:
+                avg_outputs = [sum(i) for i in zip(outputs, avg_outputs)]
+                reps+=1
             balance = self._head_balance(states)
             head_balance.append(balance)
+        avg_outputs2 = [x / reps for x in avg_outputs]
         self.head_balance.append(head_balance)
+        self.outputs.append(avg_outputs2)
 
 
     def simulate_v4(self, genome, config):
@@ -993,12 +1028,13 @@ class CustomEnvironment(tfenv):
         headless = False
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         batch = Batch(
-            simulation_time=30,
+            simulation_time=20,
             sampling_frequency=8,
             control_frequency=control_frequency,
             control=self._control,
         )
         actor, self._controller = robot.make_actor_and_controller()
+        #print(actor.joints)
         env = Environment()
         env.actors.append(
             PosedActor(
@@ -1106,7 +1142,7 @@ class CustomEnvironment(tfenv):
         body.core.right.attachment = ActiveHinge(math.pi / 2.0)
         body.core.right.attachment.attachment = Brick(0.0)
         '''
-
+        '''
         ## Ant 
         body.core.right = ActiveHinge(0.0)
         body.core.right.attachment = Brick(0.0)
@@ -1126,7 +1162,7 @@ class CustomEnvironment(tfenv):
         body.core.back.attachment.front.attachment.left.attachment = Brick(0.0)
         body.core.back.attachment.front.attachment.right = ActiveHinge(0.0)
         body.core.back.attachment.front.attachment.right.attachment = Brick(0.0)
-
+        '''
         '''
         ## Super Ant
         body.core.right = ActiveHinge(math.pi / 2)
@@ -1169,7 +1205,7 @@ class CustomEnvironment(tfenv):
         body.core.back.attachment.front.attachment.front.attachment.front.attachment.right.attachment.front = ActiveHinge(0.0)
         body.core.back.attachment.front.attachment.front.attachment.front.attachment.right.attachment.front.attachment = Brick(0.0)
         '''
-        '''
+
         ## Gecko
         body.core.left = ActiveHinge(0.0)
         body.core.left.attachment = Brick(0.0)
@@ -1185,7 +1221,7 @@ class CustomEnvironment(tfenv):
         body.core.back.attachment.front.attachment.left.attachment = Brick(0.0)
         body.core.back.attachment.front.attachment.right = ActiveHinge(0.0)
         body.core.back.attachment.front.attachment.right.attachment = Brick(0.0)
-        '''
+
         '''
         ## Super Gecko
         body.core.left = ActiveHinge(math.pi / 2)
@@ -1215,7 +1251,6 @@ class CustomEnvironment(tfenv):
         body.core.back.attachment.front.attachment.front.attachment.right.attachment.front = ActiveHinge(0.0)
         body.core.back.attachment.front.attachment.front.attachment.right.attachment.front.attachment = Brick(0.0)
         '''
-
         '''
         ## Spider
         body.core.left = ActiveHinge(np.pi / 2.0)
@@ -1268,7 +1303,6 @@ class CustomEnvironment(tfenv):
         body.core.back.attachment.front.attachment.front = ActiveHinge(0.0)
         body.core.back.attachment.front.attachment.front.attachment = Brick(0.0)
         '''
-
         body.finalize()
         rng = Random()
         rng.seed(3)
@@ -1291,7 +1325,7 @@ if __name__ == "__main__":
 
 '''
 def main() -> None:
-    mode = 'train1'
+    mode = 'test'
     avg2_fitness = []
     std2_fitness = []
     best2_fitness = []
@@ -1301,6 +1335,7 @@ def main() -> None:
     mean2_lst = []
     max2_lst = []
     std2_lst = []
+    avg_outputs = []
     ini_total = time.time()
     if mode == 'train':
         for i in range(10):
@@ -1340,11 +1375,13 @@ def main() -> None:
             ## Overall best genome
             real_winner = stats.best_genome()
             head_balance = tfe.get_head_balance()
+            outputs = tfe.get_outputs()
 
             # Plots for fitness, network and speciation
             visualize.plot_stats(stats,cnt=i, ylog=False, view=False)
             visualize.plot_stats2(stats,cnt=i, ylog=False, view=False)
             visualize.plot_head_balance(stats, head_balance,cnt=i, ylog=False, view=False)
+            visualize.plot_outputs(stats,outputs,cnt=i,ylog=False,view=False)
 
             visualize.plot_stats_nobest(stats, cnt=i, ylog=False, view=False)
             visualize.plot_stats2_nobest(stats, cnt=i, ylog=False, view=False)
@@ -1380,8 +1417,6 @@ def main() -> None:
                 max_lst.append(np.max(lst))
                 std_lst.append(np.std(lst))
 
-            tfe.set_head_balance([])
-
             if i > 0:
                 avg2_fitness = [ele1 + ele2 for ele1, ele2 in zip(avg2_fitness, avg_fitness)]
                 std2_fitness = [ele1 + ele2 for ele1, ele2 in zip(std2_fitness, stdev_fitness)]
@@ -1392,6 +1427,8 @@ def main() -> None:
                 mean2_lst = [ele1 + ele2 for ele1, ele2 in zip(mean2_lst, mean_lst)]
                 max2_lst = [ele1 + ele2 for ele1, ele2 in zip(max2_lst, max_lst)]
                 std2_lst = [ele1 + ele2 for ele1, ele2 in zip(std2_lst, std_lst)]
+                for cnt in range(0,len(avg_outputs)):
+                    avg_outputs[cnt] = [ele1 + ele2 for ele1,ele2 in zip(avg_outputs[cnt],outputs[cnt])]
             else:
                 avg2_fitness = avg_fitness
                 std2_fitness = stdev_fitness
@@ -1402,7 +1439,10 @@ def main() -> None:
                 mean2_lst = mean_lst
                 max2_lst = max_lst
                 std2_lst = std_lst
+                avg_outputs = outputs
 
+            tfe.set_head_balance([])
+            tfe.set_outputs([])
             fim = time.time()  # prints execution time
             print('\nExecution time: ' + str(round((fim - ini) / 60)) + ' minutes \n')
 
@@ -1415,17 +1455,20 @@ def main() -> None:
         mean2_lst = [number / 10 for number in mean2_lst]
         max2_lst = [number / 10 for number in max2_lst]
         std2_lst = [number / 10 for number in std2_lst]
+        for cnt in range(0,len(avg_outputs)):
+            avg_outputs[cnt] = [number/ 10 for number in avg_outputs[cnt]]
 
         gens = 40
 
         # Plots for fitness, network and speciation
-        visualize.plot_stats_avg(best2_fitness,avg2_fitness,std2_fitness,gens, ylog=False, view=True)
-        visualize.plot_stats2_avg(median2_fitness,stat25_2,stat75_2,best2_fitness,gens, ylog=False, view=True)
-        visualize.plot_head_balance_avg(mean2_lst,max2_lst,std2_lst,gens, ylog=False, view=True)
+        visualize.plot_stats_avg(best2_fitness,avg2_fitness,std2_fitness,gens, ylog=False, view=False)
+        visualize.plot_stats2_avg(median2_fitness,stat25_2,stat75_2,best2_fitness,gens, ylog=False, view=False)
+        visualize.plot_head_balance_avg(mean2_lst,max2_lst,std2_lst,gens, ylog=False, view=False)
+        visualize.plot_avg_outputs(avg_outputs,gens,ylog=False,view=False)
 
-        visualize.plot_stats_avg_nobest(best2_fitness, avg2_fitness, std2_fitness, gens, ylog=False, view=True)
-        visualize.plot_stats2_avg_nobest(median2_fitness, stat25_2, stat75_2, best2_fitness, gens, ylog=False, view=True)
-        visualize.plot_head_balance_avg_nobest(mean2_lst, max2_lst, std2_lst, gens, ylog=False, view=True)
+        visualize.plot_stats_avg_nobest(best2_fitness, avg2_fitness, std2_fitness, gens, ylog=False, view=False)
+        visualize.plot_stats2_avg_nobest(median2_fitness, stat25_2, stat75_2, best2_fitness, gens, ylog=False, view=False)
+        visualize.plot_head_balance_avg_nobest(mean2_lst, max2_lst, std2_lst, gens, ylog=False, view=False)
 
         fim_total = time.time()  # prints total execution time
         print('\nTotal Execution time: ' + str(round((fim_total - ini_total) / 60)) + ' minutes \n')
@@ -1437,7 +1480,7 @@ def main() -> None:
         #img_path = 'robot.png'
         #render.render_robot(robot.body.core, img_path)
 
-        with open('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat/neat_test10xy/test5/best_genome_4', 'rb') as fp:
+        with open('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat/gecko_all/best_genome_0', 'rb') as fp:
             real_winner = pickle.load(fp)
         config_file = 'neat_config'
         config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
@@ -1467,7 +1510,7 @@ def main() -> None:
         p.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         p.add_reporter(stats)
-        p.add_reporter(neat.Checkpointer(generation_interval=50, time_interval_seconds=None,
+        p.add_reporter(neat.Checkpointer(generation_interval=40, time_interval_seconds=None,
                                          filename_prefix='checkpoint_' + str(i) + '_'))
         # genomes = []
         # for i in p.population:
@@ -1480,18 +1523,20 @@ def main() -> None:
         # pe = neat.ParallelEvaluator(3, tfe.simulate_v4)
         # winner = p.run(pe.evaluate, 5)
 
-        winner = p.run(tfe.simulate_v3, 50)
+        winner = p.run(tfe.simulate_v3, 40)
         # Display the winning genome (in population of last generation)
         print('\nBest genome:\n{!s}'.format(winner))
 
         ## Overall best genome
         real_winner = stats.best_genome()
         head_balance = tfe.get_head_balance()
+        outputs = tfe.get_outputs()
 
         # Plots for fitness, network and speciation
         visualize.plot_stats(stats, cnt=i, ylog=False, view=False)
         visualize.plot_stats2(stats, cnt=i, ylog=False, view=False)
         visualize.plot_head_balance(stats, head_balance, cnt=i, ylog=False, view=False)
+        visualize.plot_outputs(stats,outputs,cnt = i, ylog=False, view=False)
 
         visualize.plot_stats_nobest(stats, cnt=i, ylog=False, view=False)
         visualize.plot_stats2_nobest(stats, cnt=i, ylog=False, view=False)
