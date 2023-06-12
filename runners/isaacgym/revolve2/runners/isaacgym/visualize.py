@@ -221,19 +221,22 @@ def plot_outputs(statistics, outputs,  ylog=False, view=False, cnt = 0):
         return
 
     generation = range(len(statistics.most_fit_genomes))
-
+    non_active = [0,2,4,6]
     for i in range(len(outputs[0])):
-        plt.plot(generation, [pt[i] for pt in outputs], label='output %s' % i)
+        if i in non_active:
+            plt.plot(generation, [pt[i] for pt in outputs], label='output %s (-)' % i)
+        else:
+            plt.plot(generation, [pt[i] for pt in outputs], label='output %s (+)' % i)
 
     plt.title("Outputs across generations")
     plt.xlabel("Generations")
     plt.ylabel("Outputs")
     plt.grid()
-    plt.legend(loc="best")
+    plt.legend(bbox_to_anchor=(1.04, 1), borderaxespad=0)
     if ylog:
         plt.gca().set_yscale('symlog')
-    filename = 'outputs' + str(cnt) + '.svg'
-    plt.savefig(filename)
+    filename = 'outputs_' + str(cnt) + '.svg'
+    plt.savefig(filename,  bbox_inches="tight")
     if view:
         plt.show()
 
@@ -424,19 +427,22 @@ def plot_avg_outputs(avg_outputs, gens, ylog=False, view=False, filename='output
         return
 
     generation = range(gens)
-
+    non_active = [0,2,4,6]
     for i in range(len(avg_outputs[0])):
-        plt.plot(generation, [pt[i] for pt in avg_outputs], label='output %s' % i)
+        if i in non_active:
+            plt.plot(generation, [pt[i] for pt in avg_outputs], label='output %s (-)' % i)
+        else:
+            plt.plot(generation, [pt[i] for pt in avg_outputs], label='output %s (+)' % i)
 
-    plt.title("Avg. Outputs across generations")
+    plt.title("Average outputs across generations")
     plt.xlabel("Generations")
     plt.ylabel("Outputs")
     plt.grid()
-    plt.legend(loc="best")
+    plt.legend(bbox_to_anchor=(1.04, 1), borderaxespad=0)
     if ylog:
         plt.gca().set_yscale('symlog')
 
-    plt.savefig(filename)
+    plt.savefig(filename,  bbox_inches="tight")
     if view:
         plt.show()
 

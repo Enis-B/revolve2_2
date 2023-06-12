@@ -39,7 +39,7 @@ from revolve2.core.physics.running import ActorControl, Batch, Environment, Pose
 #from revolve2.runners.isaacgym import LocalRunner
 from revolve2.core.physics.actor.urdf import to_urdf as physbot_to_urdf
 from revolve2.core.modular_robot.render.render import Render
-from jlo.RL.rl_brain import RLbrain
+#from jlo.RL.rl_brain import RLbrain
 
 from tensorforce.environments import Environment as tfenv
 from tensorforce.agents import Agent as ag
@@ -491,18 +491,19 @@ class LocalRunner(Runner):
                     hinges = np.append(hinges_pos,hinges_vel)
                     inputs = np.ndarray.flatten(hinges_pos)
 
-                    reduced_inputs = []
+                    #reduced_inputs = []
                     #for cnt in range(0,len(inputs)):
-                    #    if cnt not in [1,3,8,10]: #1,3,8,10 (outer) 0,2,7,9 (inner) - supergecko / 0,3,6,9 (inner) 2,5,8,11 (outer) - superspider
+                    #    if cnt not in [0,2,4,6]: #1,3,8,10 (outer) 0,2,7,9 (inner) - supergecko / 0,3,6,9 (inner) 2,5,8,11 (outer) - superspider
                     #        reduced_inputs.append(inputs[cnt])
                     #outputs = net.activate(reduced_inputs)
                     outputs = net.activate(inputs)
+                    abs_outputs = [abs(ele) for ele in outputs]
                     #print(outputs)
                     if outputs_sum == [] :
-                        outputs_sum = outputs
+                        outputs_sum = abs_outputs
                         reps+=1
                     else:
-                        outputs_sum = [sum(i) for i in zip(outputs,outputs_sum)]
+                        outputs_sum = [sum(i) for i in zip(abs_outputs,outputs_sum)]
                         reps+=1
                     old_position = new_position
 
@@ -1480,7 +1481,7 @@ def main() -> None:
         #img_path = 'robot.png'
         #render.render_robot(robot.body.core, img_path)
 
-        with open('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat/gecko_all/best_genome_0', 'rb') as fp:
+        with open('/home/enis/Projects/revolve2/runners/isaacgym/revolve2/runners/isaacgym/neat/gecko_all_10/gecko_all_1/best_genome_1', 'rb') as fp:
             real_winner = pickle.load(fp)
         config_file = 'neat_config'
         config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
