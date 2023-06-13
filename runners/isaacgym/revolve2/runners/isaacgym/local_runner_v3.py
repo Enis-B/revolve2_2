@@ -490,20 +490,20 @@ class LocalRunner(Runner):
                     #hinges_vel = preprocessing.normalize(hinges_vel, norm='l2')
                     hinges = np.append(hinges_pos,hinges_vel)
                     inputs = np.ndarray.flatten(hinges_pos)
-
+                    # 1,3,5,7 (outer) 0,2,4,6 (inner) - spider / 2,3,4,5 (outer) 0,1 (inner) - gecko / 1,3,8,10 (outer) 0,2,7,9 (inner) - supergecko / 0,3,6,9 (inner) 2,5,8,11 (outer) - superspider
                     #reduced_inputs = []
                     #for cnt in range(0,len(inputs)):
-                    #    if cnt not in [0,2,4,6]: #1,3,8,10 (outer) 0,2,7,9 (inner) - supergecko / 0,3,6,9 (inner) 2,5,8,11 (outer) - superspider
+                    #    if cnt not in [1,3,5,7]:
                     #        reduced_inputs.append(inputs[cnt])
                     #outputs = net.activate(reduced_inputs)
                     outputs = net.activate(inputs)
-                    abs_outputs = [abs(ele) for ele in outputs]
+                    #abs_outputs = [abs(ele) for ele in outputs]
                     #print(outputs)
                     if outputs_sum == [] :
-                        outputs_sum = abs_outputs
+                        outputs_sum = outputs
                         reps+=1
                     else:
-                        outputs_sum = [sum(i) for i in zip(abs_outputs,outputs_sum)]
+                        outputs_sum = [sum(i) for i in zip(outputs,outputs_sum)]
                         reps+=1
                     old_position = new_position
 
@@ -1377,6 +1377,13 @@ def main() -> None:
             real_winner = stats.best_genome()
             head_balance = tfe.get_head_balance()
             outputs = tfe.get_outputs()
+
+            ##
+            with open('stats_' + str(i), 'wb') as fp:
+                pickle.dump(stats, fp)
+
+            with open('avg_outputs_' + str(i), 'wb') as fp:
+                pickle.dump(outputs, fp)
 
             # Plots for fitness, network and speciation
             visualize.plot_stats(stats,cnt=i, ylog=False, view=False)
