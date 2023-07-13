@@ -5,7 +5,7 @@ Revolve2 is a Python package for optimization, geared towards modular robots and
 Its primary features are a modular robot framework, wrappers around physics simulators, and evolutionary optimizers.
 It consists of multiple smaller python packages and optional supplementary packages that contain varying functionality that is not always required.
   
-
+# For the NEAT experimentation including `limited` proprioception, explanation is at the end of this file.
 ## Prerequisites 
 
 If you are using the Isaac Gym environment supplementary library, it requires exactly python 3.8. It's working on Linux and windows only. 
@@ -231,9 +231,10 @@ git push --force-with-lease
 
  
 >>>>>>> 3749374 (Update README.md)
->>>>>>> ## This library is an addition to the main revovle2 framework used for building and optimizing modular robots in simulation.
+>>>>>>> ## This library is an addition to the main revolve2 framework used for building and optimizing modular robots in simulation.
 >>>>>>> The simulator used in this work is NVIDIA Isaacgym.
 ## The code for running the `limited` proprioception experiments using NEAT is included under runners/isaacgym/revolve2/runners/isaacgym
 - The main driver code is in local_runners_v3 and the neat config. file that contains the NEAT parameters.
 - Different morpohlogies and other parameters can be changed in local_runners_v3.
 - Boxplots.py and visualize.py are used for plotting the results of the experiments.
+- The experiments conducted using NEAT are contained inside the neat folder on the same directory.
