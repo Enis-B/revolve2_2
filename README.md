@@ -231,3 +231,9 @@ git push --force-with-lease
 
  
 >>>>>>> 3749374 (Update README.md)
+>>>>>>> ## This library is an addition to the main revovle2 framework used for building and optimizing modular robots in simulation.
+>>>>>>> The simulator used in this work is NVIDIA Isaacgym.
+## The code for running the `limited` proprioception experiments using NEAT is included under runners/isaacgym/revolve2/runners/isaacgym
+- The main driver code is in local_runners_v3 and the neat config. file that contains the NEAT parameters.
+- Different morpohlogies and other parameters can be changed in local_runners_v3.
+- Boxplots.py and visualize.py are used for plotting the results of the experiments.
